@@ -4,7 +4,7 @@ project(hector_mapping_core)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED sensor_msgs geometry_msgs nav_msgs laser_geometry)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS thread)
@@ -55,7 +55,7 @@ add_definitions(${EIGEN_DEFINITIONS})
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES hector_mapping_core
-#  CATKIN_DEPENDS other_catkin_pkg
+  CATKIN_DEPENDS sensor_msgs geometry_msgs nav_msgs laser_geometry
   DEPENDS Boost Eigen
 )
 
@@ -71,6 +71,7 @@ include_directories(${catkin_INCLUDE_DIRS})
 ## Declare a cpp library
 add_library(hector_mapping_core
   src/${PROJECT_NAME}/map.cpp
+  src/${PROJECT_NAME}/occupancy.cpp
   src/${PROJECT_NAME}/scan.cpp
   src/${PROJECT_NAME}/matcher.cpp
 )

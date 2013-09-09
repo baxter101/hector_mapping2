@@ -26,31 +26,16 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/matcher.h>
+#include <hector_mapping_core/map/occupancy.h>
+#include <nav_msgs/OccupancyGrid.h>
+
+#ifndef HECTOR_MAPPING_MAP_CONVERSION_H
+#define HECTOR_MAPPING_MAP_CONVERSION_H
 
 namespace hector_mapping {
 
-ScanMatcher::ScanMatcher()
-{
-
-}
-
-ScanMatcher::~ScanMatcher()
-{}
-
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
-{
-  return false;
-}
-
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
-}
+void toOccupancyGridMessage(const GridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z = 0.0);
 
 } // namespace hector_mapping
 
+#endif // HECTOR_MAPPING_MAP_CONVERSION_H

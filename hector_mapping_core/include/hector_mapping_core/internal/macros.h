@@ -26,31 +26,18 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/matcher.h>
 
-namespace hector_mapping {
+#ifndef HECTOR_MAPPING_INTERNAL_MACROS_H
+#define HECTOR_MAPPING_INTERNAL_MACROS_H
 
-ScanMatcher::ScanMatcher()
-{
+#define PARAMETER(Class, type, name) \
+  public: \
+    Class& name(type name) { name##_ = name; return *this; } \
+    type& name() { return name##_; } \
+    const type& name() const { return name##_; } \
+  private: \
+    type name##_
 
-}
+#define BIT(value,bit) (((value) >> (bit)) & 1u)
 
-ScanMatcher::~ScanMatcher()
-{}
-
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
-{
-  return false;
-}
-
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
-}
-
-} // namespace hector_mapping
-
+#endif // HECTOR_MAPPING_INTERNAL_MACROS_H

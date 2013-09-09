@@ -26,7 +26,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/forwards.h>
+#include <hector_mapping_core/types.h>
 
 #ifndef HECTOR_MAPPING_MAP_CELL_H
 #define HECTOR_MAPPING_MAP_CELL_H

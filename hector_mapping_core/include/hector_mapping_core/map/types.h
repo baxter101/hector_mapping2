@@ -26,23 +26,20 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
+#include <hector_mapping_core/map.h>
+#include <hector_mapping_core/map/occupancy.h>
 
-#ifndef HECTOR_MAPPING_FORWARDS_H
-#define HECTOR_MAPPING_FORWARDS_H
+#include <hector_mapping_core/structure/array.h>
+#include <hector_mapping_core/structure/binary_tree.h>
 
-namespace hector_mapping
-{
+#ifndef HECTOR_MAPPING_MAP_TYPES_H
+#define HECTOR_MAPPING_MAP_TYPES_H
 
-class MapBase;
-class GridMapBase;
-class GridMapParameters;
-template <typename CellType> class GridMap;
+namespace hector_mapping {
 
-class GridCellBase;
-class OccupancyGridCell;
-
-class Scan;
+typedef GridMapImpl<OccupancyGridCell, structure::Array<OccupancyGridCell, structure::axis::XY> > OccupancyGridMap2D;
+typedef GridMapImpl<OccupancyGridCell, structure::BinaryTree<OccupancyGridCell, structure::axis::XY> > OccupancyQuadTreeMap2D;
 
 } // namespace hector_mapping
 
-#endif // HECTOR_MAPPING_FORWARDS_H
+#endif // HECTOR_MAPPING_MAP_TYPES_H

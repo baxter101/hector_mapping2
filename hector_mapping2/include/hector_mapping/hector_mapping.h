@@ -26,31 +26,51 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
+
+#ifndef HECTOR_MAPPING_NODE_H
+#define HECTOR_MAPPING_NODE_H
+
+#include <hector_mapping_core/map/types.h>
+#include <hector_mapping_core/scan.h>
 #include <hector_mapping_core/matcher.h>
+
+#include <ros/ros.h>
+#include <nodelet/nodelet.h>
+
+#include <sensor_msgs/LaserScan.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <nav_msgs/OccupancyGrid.h>
+
 
 namespace hector_mapping {
 
-ScanMatcher::ScanMatcher()
+class Node : public nodelet::Nodelet
 {
+public:
+  Node();
+  virtual ~Node();
 
-}
+  void onInit();
 
-ScanMatcher::~ScanMatcher()
-{}
+  void scanCallback(const sensor_msgs::LaserScanConstPtr& scan);
+  void publishMap();
 
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
-{
-  return false;
-}
+protected:
+  GridMapPtr map_;
+  ScanMatcherPtr matcher_;
+  Scan scan_;
 
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
-}
+  nav_msgs::OccupancyGrid map_message_;
+  geometry_msgs::PoseWithCovarianceStamped pose_message_;
+
+private:
+  ros::Subscriber scan_subscriber_;
+  ros::Publisher pose_publisher_;
+
+  ros::Timer map_publish_timer_;
+  ros::Publisher map_publisher_;
+};
 
 } // namespace hector_mapping
 
+#endif // HECTOR_MAPPING_NODE_H

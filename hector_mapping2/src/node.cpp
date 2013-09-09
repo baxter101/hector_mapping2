@@ -26,31 +26,14 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/matcher.h>
+#include <hector_mapping/hector_mapping.h>
+#include <ros/ros.h>
 
-namespace hector_mapping {
-
-ScanMatcher::ScanMatcher()
-{
-
+int main(int argc, char **argv) {
+  ros::init(argc, argv, "hector_mapping");
+  ros::V_string args(argv, argv + argc);
+  hector_mapping::Node node;
+  node.init("hector_mapping", ros::names::getRemappings(), args);
+  ros::spin();
+  return 0;
 }
-
-ScanMatcher::~ScanMatcher()
-{}
-
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
-{
-  return false;
-}
-
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
-}
-
-} // namespace hector_mapping
-

@@ -31,34 +31,56 @@
 #define HECTOR_MAPPING_MAP_OCCUPANCY_H
 
 #include <hector_mapping_core/map/cell.h>
+#include <hector_mapping_core/internal/macros.h>
+
+#include <limits>
 
 namespace hector_mapping
 {
 
-typedef float occupancy_t;
+typedef int occupancy_t;
 
 class OccupancyParameters
 {
-  occupancy_t min_occupancy;
-  occupancy_t max_occupancy;
-  occupancy_t initial_value;
-  occupancy_t step_occupied;
-  occupancy_t step_free;
+  PARAMETER(OccupancyParameters, occupancy_t, min_occupancy);
+  PARAMETER(OccupancyParameters, occupancy_t, max_occupancy);
+  PARAMETER(OccupancyParameters, occupancy_t, initial_value);
+  PARAMETER(OccupancyParameters, occupancy_t, step_occupied);
+  PARAMETER(OccupancyParameters, occupancy_t, step_free);
+  PARAMETER(OccupancyParameters, occupancy_t, threshold_occupied);
+  PARAMETER(OccupancyParameters, occupancy_t, threshold_free);
 
-  OccupancyParameters();
-  static OccupancyParameters &Default() { return s_default_; }
+public:
+  OccupancyParameters()
+    : min_occupancy_(std::numeric_limits<occupancy_t>::min())
+    , max_occupancy_(std::numeric_limits<occupancy_t>::max())
+    , initial_value_(0)
+    , step_occupied_(1)
+    , step_free_(-1)
+    , threshold_occupied_(0)
+    , threshold_free_(0)
+  {}
 
-private:
-  static OccupancyParameters s_default_;
+  static OccupancyParameters &Default() {
+    static OccupancyParameters s_default;
+    return s_default;
+  }
 };
 
 class OccupancyGridCell : public GridCellBase
 {
+public:
+  typedef OccupancyParameters Parameters;
+
   OccupancyGridCell(const OccupancyParameters &parameters = OccupancyParameters::Default());
   ~OccupancyGridCell();
 
-  occupancy_t getOccupancy() const;
+  occupancy_t getOccupancy() const { return value_; }
   void setOccupancy(occupancy_t occupancy, const OccupancyParameters &parameters = OccupancyParameters::Default());
+
+  bool isUnknown(const OccupancyParameters &parameters = OccupancyParameters::Default()) const;
+  bool isFree(const OccupancyParameters &parameters = OccupancyParameters::Default()) const;
+  bool isOccupied(const OccupancyParameters &parameters = OccupancyParameters::Default()) const;
 
   void updateOccupied(const OccupancyParameters &parameters = OccupancyParameters::Default());
   void updateFree(const OccupancyParameters &parameters = OccupancyParameters::Default());
@@ -68,6 +90,8 @@ class OccupancyGridCell : public GridCellBase
 private:
   occupancy_t value_;
 };
+
+typedef GridMap<OccupancyGridCell> OccupancyGridMap;
 
 } // namespace hector_mapping
 

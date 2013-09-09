@@ -4,7 +4,7 @@ project(hector_mapping2)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS hector_mapping_core roscpp sensor_msgs nav_msgs map_msgs)
+find_package(catkin REQUIRED COMPONENTS hector_mapping_core roscpp nodelet sensor_msgs nav_msgs map_msgs)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -51,7 +51,7 @@ find_package(catkin REQUIRED COMPONENTS hector_mapping_core roscpp sensor_msgs n
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES hector_mapping
-  CATKIN_DEPENDS hector_mapping_core roscpp sensor_msgs nav_msgs map_msgs
+  CATKIN_DEPENDS hector_mapping_core roscpp nodelet sensor_msgs nav_msgs map_msgs
 #  DEPENDS system_lib
 )
 
@@ -61,27 +61,24 @@ catkin_package(
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-#include_directories(include)
+include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
 ## Declare a cpp library
-# add_library(hector_mapping2
-#   src/${PROJECT_NAME}/hector_mapping2.cpp
-# )
+add_library(hector_mapping src/hector_mapping.cpp)
+target_link_libraries(hector_mapping ${catkin_LIBRARIES})
 
 ## Declare a cpp executable
-# add_executable(hector_mapping2_node src/hector_mapping2_node.cpp)
+add_executable(hector_mapping_node src/node.cpp)
+target_link_libraries(hector_mapping_node hector_mapping ${catkin_LIBRARIES})
+set_target_properties(hector_mapping_node PROPERTIES OUTPUT_NAME hector_mapping)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(hector_mapping2_node hector_mapping2_generate_messages_cpp)
 
-## Specify libraries to link a library or executable target against
-# target_link_libraries(hector_mapping2_node
-#   ${catkin_LIBRARIES}
-# )
 
 #############
 ## Install ##
@@ -98,11 +95,11 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS hector_mapping2 hector_mapping2_node
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
+install(TARGETS hector_mapping hector_mapping_node
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/

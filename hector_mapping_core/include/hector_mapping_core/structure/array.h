@@ -26,31 +26,76 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/matcher.h>
+
+#ifndef HECTOR_MAPPING_STRUCTURE_ARRAY_H
+#define HECTOR_MAPPING_STRUCTURE_ARRAY_H
+
+#include <hector_mapping_core/structure/axis.h>
+#include <vector>
 
 namespace hector_mapping {
 
-ScanMatcher::ScanMatcher()
+// The ArrayParameters class.
+
+class ArrayParameters
 {
+  PARAMETER(ArrayParameters, Size, size);
 
-}
+public:
+  ArrayParameters()
+    : size_(0,0,0)
+  {}
+};
 
-ScanMatcher::~ScanMatcher()
-{}
+namespace structure {
 
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
+// The Array class.
+
+template <typename T, typename Axis>
+class Array
 {
-  return false;
-}
+public:
+  typedef Array<T, Axis> ThisType;
+  typedef T NestedType;
+  typedef ArrayParameters Parameters;
 
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
-}
+  template <typename ParameterType> Array(const ParameterType& params = ParameterType())
+  {
+    internal::ParameterAdaptor<Parameters> p(params);
+    resize(p.size());
+  }
 
+  virtual ~Array() {}
+
+  const Size &getSize() const { return size_; }
+
+  virtual T *get(const GridIndex& key) {
+    return &(array_[Axis::getArrayIndex(key, size_)]);
+  }
+
+  virtual const T *get(const GridIndex& key) const {
+    return &(array_[Axis::getArrayIndex(key, size_)]);
+  }
+
+  virtual void resize(const Size& size) {
+    std::size_t new_size = Axis::getArraySize(size);
+    if (array_.size() != new_size) {
+      array_.resize(new_size);
+      clear();
+    }
+    size_ = size;
+  }
+
+  virtual void clear() {
+    array_.assign(array_.size(), T());
+  }
+
+protected:
+  Size size_;
+  std::vector<T> array_;
+};
+
+} // namespace structure
 } // namespace hector_mapping
 
+#endif // HECTOR_MAPPING_STRUCTURE_ARRAY_H

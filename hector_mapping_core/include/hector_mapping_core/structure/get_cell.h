@@ -26,31 +26,38 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/matcher.h>
+
+#ifndef HECTOR_MAPPING_STRUCTURE_GET_CELL_H
+#define HECTOR_MAPPING_STRUCTURE_GET_CELL_H
+
+#include <boost/type_traits/is_same.hpp>
+#include <boost/utility/enable_if.hpp>
 
 namespace hector_mapping {
 
-ScanMatcher::ScanMatcher()
+template <typename CellType, typename Structure, class enabled = void>
+struct GetCell
 {
+  static CellType *get(Structure& structure, const GridIndex& index) {
+    typename Structure::NestedType *nested = structure.get(index);
+    if (!nested) return 0;
+    return GetCell<CellType, typename Structure::NestedType>::get(*nested, index);
+  }
 
-}
+  static const CellType *get(const Structure& structure, const GridIndex& index) {
+    typename Structure::NestedType const *nested = structure.get(index);
+    if (!nested) return 0;
+    return GetCell<CellType, typename Structure::NestedType>::get(*nested, index);
+  }
+};
 
-ScanMatcher::~ScanMatcher()
-{}
-
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
+template <typename CellType, typename Structure>
+struct GetCell<CellType, Structure, typename boost::enable_if< typename boost::is_same<CellType, typename Structure::NestedType>::type >::type >
 {
-  return false;
-}
-
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
-}
+  static CellType *get(Structure& structure, const GridIndex& index)             { return structure.get(index); }
+  static const CellType *get(const Structure& structure, const GridIndex& index) { return structure.get(index); }
+};
 
 } // namespace hector_mapping
 
+#endif // HECTOR_MAPPING_STRUCTURE_GET_CELL_H

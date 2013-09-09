@@ -26,30 +26,54 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/matcher.h>
+#include <hector_mapping_core/map/occupancy.h>
 
-namespace hector_mapping {
-
-ScanMatcher::ScanMatcher()
+namespace hector_mapping
 {
 
+OccupancyGridCell::OccupancyGridCell(const OccupancyParameters &params)
+{
+  reset(params);
 }
 
-ScanMatcher::~ScanMatcher()
+OccupancyGridCell::~OccupancyGridCell()
 {}
 
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
+void OccupancyGridCell::setOccupancy(occupancy_t occupancy, const OccupancyParameters &params)
 {
-  return false;
+  value_ = occupancy;
+  if (value_ > params.max_occupancy()) value_ = params.max_occupancy();
+  if (value_ < params.min_occupancy()) value_ = params.min_occupancy();
 }
 
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
+bool OccupancyGridCell::isUnknown(const OccupancyParameters &params) const
+{
+  return !isFree(params) && !isOccupied(params);
+}
+
+bool OccupancyGridCell::isFree(const OccupancyParameters &params) const
+{
+  return value_ < params.threshold_free();
+}
+
+bool OccupancyGridCell::isOccupied(const OccupancyParameters &params) const
+{
+  return value_ > params.threshold_occupied();
+}
+
+void OccupancyGridCell::updateOccupied(const OccupancyParameters &params)
+{
+  setOccupancy(value_ + params.step_occupied(), params);
+}
+
+void OccupancyGridCell::updateFree(const OccupancyParameters &params)
+{
+  setOccupancy(value_ + params.step_occupied(), params);
+}
+
+void OccupancyGridCell::reset(const OccupancyParameters &params)
+{
+  value_ = params.initial_value();
 }
 
 } // namespace hector_mapping

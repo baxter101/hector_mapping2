@@ -26,31 +26,38 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/matcher.h>
+
+#ifndef HECTOR_MAPPING_SCAN_MATCHER_H
+#define HECTOR_MAPPING_SCAN_MATCHER_H
+
+#include <hector_mapping_core/types.h>
+
+#include <geometry_msgs/TransformStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 namespace hector_mapping {
 
-ScanMatcher::ScanMatcher()
+class ScanMatcher
 {
+public:
+  ScanMatcher();
+  virtual ~ScanMatcher();
 
-}
+  // update scan matcher
+  virtual bool match(const MapBase& map, const Scan& scan);
 
-ScanMatcher::~ScanMatcher()
-{}
+  // set/get transform
+  virtual void setInitialTransform(const geometry_msgs::Transform& transform) { transform_.transform = transform; }
+  virtual const Transform& getTransform() { return transform_.transform; }
 
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
-{
-  return false;
-}
+  // get pose with covariance
+  virtual void getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose);
 
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
-}
+private:
+  TransformStamped transform_;
+  geometry_msgs::PoseWithCovarianceStamped::_pose_type::_covariance_type covariance_;
+};
 
 } // namespace hector_mapping
 
+#endif // HECTOR_MAPPING_SCAN_MATCHER_H

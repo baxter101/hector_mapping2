@@ -30,18 +30,59 @@
 #ifndef HECTOR_MAPPING_SCAN_H
 #define HECTOR_MAPPING_SCAN_H
 
-namespace hector_mapping
-{
+#include <hector_mapping_core/types.h>
+#include <hector_mapping_core/internal/macros.h>
 
-class MapBase
-{
+#include <sensor_msgs/LaserScan.h>
+#include <sensor_msgs/PointCloud2.h>
 
+#include <limits>
+
+// forward declarations
+namespace laser_geometry { class LaserProjection; }
+namespace tf { class Transformer; }
+
+namespace hector_mapping {
+
+class ScanParameters {
+  PARAMETER(ScanParameters, double, range_cutoff);
+  PARAMETER(ScanParameters, int, channel_options);
+  PARAMETER(ScanParameters, double, min_z);
+  PARAMETER(ScanParameters, double, max_z);
+
+public:
+  ScanParameters()
+    : range_cutoff_(-1.0)
+    , channel_options_(0)
+    , min_z_(-std::numeric_limits<double>::infinity())
+    , max_z_( std::numeric_limits<double>::infinity())
+  {}
 };
 
-template <typename CellType>
-class Map : virtual public MapBase
+class Scan
 {
+public:
+  Scan(const ScanParameters& params = ScanParameters());
+  Scan(tf::Transformer& tf, const ScanParameters& params = ScanParameters());
+  virtual ~Scan();
 
+  bool valid() const;
+  void clear();
+
+  Scan& operator=(const sensor_msgs::LaserScanConstPtr& scan);
+  Scan& operator=(const sensor_msgs::PointCloud2& points);
+
+private:
+  void resize(std::size_t new_size);
+
+private:
+  ScanParameters params_;
+  tf::Transformer *tf_;
+
+  std_msgs::Header header_;
+  std::vector<Point> points_;
+
+  boost::shared_ptr<laser_geometry::LaserProjection> laser_projection_;
 };
 
 } // namespace hector_mapping

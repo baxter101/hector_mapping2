@@ -31,66 +31,28 @@
 #define HECTOR_MAPPING_MAP_QUADTREE_H
 
 #include <hector_mapping_core/map.h>
+#include <hector_mapping_core/structure/binary_tree.h>
+
 #include <boost/shared_array.hpp>
 
 namespace hector_mapping
 {
 
-template <typename T>
-struct QuadTreeNode
-{
-  QuadTreeNode() : data_(0), children_(0) {}
-  ~QuadTreeNode() { delete[] data_; delete[] children_; }
+class QuadTreeMapParameters : public GridMapParameters, public BinaryTreeParameters
+{};
 
-  void clear() {
-    delete[] data_; data_ = 0;
-    delete[] children_; children_ = 0;
-  }
-
-  T *data_;
-  QuadTreeNode<T> *children_;
-};
-
-template <typename CellType>
-struct Flat
-{
-  CellType& get(const GridIndex& key) { return data_; }
-  const CellType& get(const GridIndex& key) const { return data_; }
-
-private:
-  CellType data_;
-};
-
-class QuadTreeMapParameters : public GridMapParameters {
-  QuadTreeMapParameters()
-    : GridMapParameters()
-    , max_depth(16)
-  {}
-
-  QuadTreeMapParameters &max_depth(int max_depth);
-  int max_depth_;
-};
-
-template <typename CellType, typename ZAxisRepresentation = Flat<CellType> >
-class QuadTreeMap : public GridMap<CellType>
+template <typename CellType, typename NodeType = CellType>
+class QuadTreeMap : public GridMap<CellType>, QuadTree<NodeType>
 {
 public:
-  typedef QuadTreeNode<ZAxisRepresentation> Node;
+  typedef CellType Cell;
+  typedef QuadTreeNode<NodeType> Node;
 
   QuadTreeMap(const QuadTreeMapParameters& params = QuadTreeMapParameters());
   virtual ~QuadTreeMap();
 
   virtual T& get(const GridIndex& key, int max_depth = -1);
   virtual const T& get(const GridIndex& key, int max_depth = -1) const;
-
-  virtual void clear() {
-    delete root_;
-    root_ = 0;
-  }
-
-private:
-  Node *root_;
-  int max_depth_;
 };
 
 } // namespace hector_mapping

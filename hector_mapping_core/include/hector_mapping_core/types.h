@@ -26,31 +26,58 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/matcher.h>
 
-namespace hector_mapping {
+#ifndef HECTOR_MAPPING_TYPES_H
+#define HECTOR_MAPPING_TYPES_H
 
-ScanMatcher::ScanMatcher()
+#include <boost/array.hpp>
+#include <boost/shared_ptr.hpp>
+
+#include <Eigen/Core>
+#include <geometry_msgs/TransformStamped.h>
+
+namespace hector_mapping
 {
 
-}
+  using std::size_t;
+  typedef int index_t;
+  typedef float float_t;
+  typedef boost::array<index_t,3> GridIndex;
 
-ScanMatcher::~ScanMatcher()
-{}
+  typedef Eigen::Matrix<float_t,3,1> Point;
+  typedef Eigen::Matrix<float_t,3,1> Resolution;
+  typedef Eigen::Matrix<size_t,3,1> Size;
 
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
-{
-  return false;
-}
+  class MapBase;
+  class GridMapBase;
+  class GridMapParameters;
+  template <typename CellType> class GridMap;
+  typedef boost::shared_ptr<GridMapBase> GridMapPtr;
 
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
-  pose.pose.covariance = covariance_;
-}
+  class GridCellBase;
+  class OccupancyGridCell;
+
+  class Scan;
+  class ScanMatcher;
+  typedef boost::shared_ptr<ScanMatcher> ScanMatcherPtr;
+
+  using std_msgs::Header;
+  using geometry_msgs::Transform;
+  using geometry_msgs::TransformStamped;
+
+  namespace internal {
+
+    template <typename ParameterType> struct ParameterAdaptor : public ParameterType
+    {
+      template <typename OtherParameterType> ParameterAdaptor(const OtherParameterType& params)
+      {
+        const ParameterType *other = dynamic_cast<const ParameterType *>(&params);
+        if (other) *this = *other;
+      }
+    };
+
+  } // namespace internal
 
 } // namespace hector_mapping
 
+#endif // HECTOR_MAPPING_TYPES_H

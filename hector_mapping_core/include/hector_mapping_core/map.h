@@ -30,104 +30,155 @@
 #ifndef HECTOR_MAPPING_MAP_H
 #define HECTOR_MAPPING_MAP_H
 
-#include <hector_mapping_core/forwards.h>
+#include <hector_mapping_core/types.h>
+#include <hector_mapping_core/internal/macros.h>
+#include <hector_mapping_core/structure/get_cell.h>
+#include <hector_mapping_core/structure/array.h>
 
 #include <boost/array.hpp>
 #include <Eigen/Geometry>
 
-#include <vector>
+#include <std_msgs/Header.h>
 
 namespace hector_mapping
 {
 
-typedef int index_t;
-typedef float float_t;
-typedef boost::array<index_t,3> GridIndex;
-
-typedef Eigen::Matrix<float_t,3,1> Point;
-typedef Eigen::Matrix<float_t,3,1> Offset;
-typedef Eigen::Matrix<float_t,3,1> Scale;
-typedef Eigen::Matrix<index_t,3,1> Size;
-
 class MapBase
 {
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-public:
+  template <typename ParameterType> MapBase(const ParameterType& params = ParameterType())
+  {
+    offset_ = params.offset();
+  }
   virtual ~MapBase() {}
 
   virtual void getExtends(Point &min, Point &max) = 0;
-  virtual void setExtends(const Point &min, const Point &max) = 0;
-  virtual void setMinExtends(const Point &point) = 0;
+  virtual bool setExtends(const Point &min, const Point &max) = 0;
+  virtual bool growMinExtends(const Point &point) = 0;
 
-  const Offset& getOffset() const { return offset_; }
+  const Point& getOffset() const { return offset_; }
   virtual void setOffset(const Point &offset) { offset_ = offset; }
 
   virtual void clear() = 0;
+  virtual void insertScan(const Scan& scan, const Transform& transform) {}
+
+  const Header& getHeader() const { return header_; }
+  Header& getHeader() { return header_; }
 
 protected:
   Point offset_;
+  std_msgs::Header header_;
+};
+
+class GridMapParameters : virtual public ArrayParameters
+{
+  PARAMETER(GridMapParameters, Point, offset);
+  PARAMETER(GridMapParameters, Resolution, resolution);
+
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  GridMapParameters()
+    : offset_(0.0, 0.0 ,0.0)
+    , resolution_(0.01, 0.01, 0.01)
+  {}
+  virtual ~GridMapParameters() {}
 };
 
 class GridMapBase : public MapBase
 {
+public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-public:
+  template <typename ParameterType> GridMapBase(const ParameterType& params = ParameterType())
+    : MapBase(params)
+  {
+    resolution_ = params.resolution();
+  }
+
   virtual ~GridMapBase() {}
 
+  virtual const Size& getSize() const = 0;
   virtual void getExtends(Point &min, Point &max);
-  virtual void setExtends(const Point &min, const Point &max);
-  virtual void growMinExtends(const Point &point);
+  virtual bool setExtends(const Point &min, const Point &max);
+  virtual bool growMinExtends(const Point &point);
 
-  const Scale& getScale() const { return scale_; }
-  virtual void setScale(const Scale& scale) = 0;
+  const Resolution& getResolution() const { return resolution_; }
+  virtual void setResolution(const Resolution& resolution) { resolution_ = resolution; }
 
-  const Size& getSize() const { return size_; }
-  virtual void setSize(const Size& size) = 0;
+  virtual index_t toGridIndexAxis(float_t coordinates, int axis) const;
+  virtual float_t toPointAxis(index_t index, int axis) const;
 
-  virtual GridIndex toGridIndex(const Point &point) = 0;
-  virtual Point toPoint(const GridIndex &key) = 0;
+  virtual GridIndex toGridIndex(const Point &point) const;
+  virtual Point toPoint(const GridIndex &index) const;
 
-  virtual GridIndex getNeighbourIndex(const GridIndex &key, unsigned int axis, unsigned int step = 1) = 0;
+  enum { X = 0, Y = 1, Z = 2 };
+  virtual GridIndex getNeighbourIndex(const GridIndex &key, unsigned int axis, int step = 1) const;
 
 protected:
-  Scale scale_;
-  Size size_;
-};
-
-class GridMapParameters
-{
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-public:
-  GridMapParameters();
-  GridMapParameters &size(index_t size);
-  GridMapParameters &size(const Size& size);
-  GridMapParameters &scale(float_t scale);
-  GridMapParameters &scale(const Scale &scale);
-  GridMapParameters &offset(const Point &offset);
-
-  Size size_;
-  Point offset_;
-  Scale scale_;
+  Resolution resolution_;
 };
 
 template <typename CellType>
 class GridMap : public GridMapBase
 {
 public:
+  struct Parameters : public GridMapParameters, public CellType::Parameters {};
+  typedef typename CellType::Parameters CellParameters;
+
+  template <typename ParameterType> GridMap(const ParameterType& params = ParameterType())
+    : GridMapBase(params)
+    , cell_params_(internal::ParameterAdaptor<CellParameters>(params))
+  {
+  }
   virtual ~GridMap() {}
 
-  virtual CellType& get(const GridIndex& key) = 0;
-  virtual const CellType& get(const GridIndex& key) const = 0;
+  virtual CellType *get(const GridIndex& key) = 0;
+  virtual const CellType *get(const GridIndex& key) const = 0;
 
   // convenience access functions
-  CellType& operator()(const GridIndex& key)             { return get(key); }
-  const CellType& operator()(const GridIndex& key) const { return get(key); }
-  CellType& operator()(const Point& point)               { return get(toGridIndex(point)); }
-  const CellType& operator()(const Point& point) const   { return get(toGridIndex(point)); }
+  CellType& operator()(const GridIndex& key)             { return *get(key); }
+  const CellType& operator()(const GridIndex& key) const { return *get(key); }
+  CellType& operator()(const Point& point)               { return *get(toGridIndex(point)); }
+  const CellType& operator()(const Point& point) const   { return *get(toGridIndex(point)); }
+
+  // get cell parameter struct
+  const CellParameters& getCellParameters() const { return cell_params_; }
+
+private:
+  CellParameters cell_params_;
 };
+
+template <typename CellType, typename Structure>
+class GridMapImpl : public GridMap<CellType>, public Structure
+{
+public:
+  struct Parameters : public GridMap<CellType>::Parameters, virtual public Structure::Parameters {};
+
+  template <typename ParameterType> GridMapImpl(const ParameterType& params = ParameterType())
+    : GridMap<CellType>(params)
+    , Structure(params)
+  {}
+  virtual ~GridMapImpl() {}
+
+  virtual void clear() { Structure::clear(); }
+  virtual const Size &getSize() const { return Structure::getSize(); }
+
+  virtual typename Structure::NestedType *getNext(const GridIndex& key) { return Structure::get(key); }
+  virtual const typename Structure::NestedType *getNext(const GridIndex& key) const { return Structure::get(key); }
+
+  virtual CellType *get(const GridIndex& key) { return GetCell<CellType,Structure>::get(*this, key); }
+  virtual const CellType *get(const GridIndex& key) const { return GetCell<CellType,Structure>::get(*this, key); }
+
+  // convenience access functions
+  CellType& operator()(const GridIndex& key)             { return *get(key); }
+  const CellType& operator()(const GridIndex& key) const { return *get(key); }
+  CellType& operator()(const Point& point)               { return *get(this->toGridIndex(point)); }
+  const CellType& operator()(const Point& point) const   { return *get(this->toGridIndex(point)); }
+};
+
 
 } // namespace hector_mapping
 
