@@ -36,6 +36,7 @@ namespace hector_mapping
 
 class GridCellBase
 {
+
 };
 
 } // namespace hector_mapping

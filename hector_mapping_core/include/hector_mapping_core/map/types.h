@@ -37,8 +37,8 @@
 
 namespace hector_mapping {
 
-typedef GridMapImpl<OccupancyGridCell, structure::Array<OccupancyGridCell, structure::axis::XY> > OccupancyGridMap2D;
-typedef GridMapImpl<OccupancyGridCell, structure::BinaryTree<OccupancyGridCell, structure::axis::XY> > OccupancyQuadTreeMap2D;
+typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::Array<OccupancyGridCell, structure::axis::XY> > OccupancyGridMap2D;
+typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, structure::axis::XY> > OccupancyQuadTreeMap2D;
 
 } // namespace hector_mapping
 

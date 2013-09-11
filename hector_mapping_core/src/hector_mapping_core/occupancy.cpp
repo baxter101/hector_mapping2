@@ -39,7 +39,7 @@ OccupancyGridCell::OccupancyGridCell(const OccupancyParameters &params)
 OccupancyGridCell::~OccupancyGridCell()
 {}
 
-void OccupancyGridCell::setOccupancy(occupancy_t occupancy, const OccupancyParameters &params)
+void OccupancyGridCell::setValue(occupancy_t occupancy, const OccupancyParameters &params)
 {
   value_ = occupancy;
   if (value_ > params.max_occupancy()) value_ = params.max_occupancy();
@@ -63,12 +63,12 @@ bool OccupancyGridCell::isOccupied(const OccupancyParameters &params) const
 
 void OccupancyGridCell::updateOccupied(const OccupancyParameters &params)
 {
-  setOccupancy(value_ + params.step_occupied(), params);
+  setValue(value_ + params.step_occupied(), params);
 }
 
 void OccupancyGridCell::updateFree(const OccupancyParameters &params)
 {
-  setOccupancy(value_ + params.step_occupied(), params);
+  setValue(value_ + params.step_occupied(), params);
 }
 
 void OccupancyGridCell::reset(const OccupancyParameters &params)

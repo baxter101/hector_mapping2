@@ -34,7 +34,7 @@
 
 namespace hector_mapping {
 
-void toOccupancyGridMessage(const GridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z = 0.0);
+void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z = 0.0);
 
 } // namespace hector_mapping
 

@@ -51,8 +51,11 @@ namespace hector_mapping
   class MapBase;
   class GridMapBase;
   class GridMapParameters;
-  template <typename CellType> class GridMap;
+  template <typename CellType, typename BaseType> class GridMap;
   typedef boost::shared_ptr<GridMapBase> GridMapPtr;
+
+  class OccupancyGridMapBase;
+  template <typename OccupancyCellType> class OccupancyGridMap;
 
   class GridCellBase;
   class OccupancyGridCell;

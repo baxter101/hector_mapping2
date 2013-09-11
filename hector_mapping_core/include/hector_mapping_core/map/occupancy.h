@@ -30,6 +30,7 @@
 #ifndef HECTOR_MAPPING_MAP_OCCUPANCY_H
 #define HECTOR_MAPPING_MAP_OCCUPANCY_H
 
+#include <hector_mapping_core/map.h>
 #include <hector_mapping_core/map/cell.h>
 #include <hector_mapping_core/internal/macros.h>
 
@@ -75,8 +76,8 @@ public:
   OccupancyGridCell(const OccupancyParameters &parameters = OccupancyParameters::Default());
   ~OccupancyGridCell();
 
-  occupancy_t getOccupancy() const { return value_; }
-  void setOccupancy(occupancy_t occupancy, const OccupancyParameters &parameters = OccupancyParameters::Default());
+  occupancy_t getValue() const { return value_; }
+  void setValue(occupancy_t occupancy, const OccupancyParameters &parameters = OccupancyParameters::Default());
 
   bool isUnknown(const OccupancyParameters &parameters = OccupancyParameters::Default()) const;
   bool isFree(const OccupancyParameters &parameters = OccupancyParameters::Default()) const;
@@ -91,7 +92,43 @@ private:
   occupancy_t value_;
 };
 
-typedef GridMap<OccupancyGridCell> OccupancyGridMap;
+class OccupancyGridMapBase : public GridMapBase
+{
+public:
+  virtual ~OccupancyGridMapBase() {}
+
+  virtual OccupancyGridCell *getOccupancy(const GridIndex& key) = 0;
+  virtual const OccupancyGridCell *getOccupancy(const GridIndex& key) const = 0;
+
+  virtual OccupancyGridCell *getOccupancy(const Point& point) = 0;
+  virtual const OccupancyGridCell *getOccupancy(const Point& point) const = 0;
+
+  virtual const OccupancyParameters& getOccupancyParameters() const = 0;
+};
+
+template <typename OccupancyCellType>
+class OccupancyGridMap : public GridMap<OccupancyCellType, OccupancyGridMapBase>
+{
+public:
+  using GridMap<OccupancyCellType, OccupancyGridMapBase>::BaseType;
+  using GridMap<OccupancyCellType, OccupancyGridMapBase>::CellType;
+  typedef typename GridMap<OccupancyCellType>::Parameters Parameters;
+
+  OccupancyGridMap(const Parameters &params = Parameters())
+    : GridMap<OccupancyCellType>(params)
+  {}
+  virtual ~OccupancyGridMap() {}
+
+  using GridMap<OccupancyCellType, OccupancyGridMapBase>::operator ();
+
+  virtual OccupancyGridCell *getOccupancy(const GridIndex& key)             { return GridMap<OccupancyCellType>::get(key); }
+  virtual const OccupancyGridCell *getOccupancy(const GridIndex& key) const { return GridMap<OccupancyCellType>::get(key); }
+
+  virtual OccupancyGridCell *getOccupancy(const Point& point)               { return GridMap<OccupancyCellType>::get(this->toGridIndex(point)); }
+  virtual const OccupancyGridCell *getOccupancy(const Point& point) const   { return GridMap<OccupancyCellType>::get(this->toGridIndex(point)); }
+
+  virtual const OccupancyParameters& getOccupancyParameters() const { return this->getCellParameters(); }
+};
 
 } // namespace hector_mapping
 

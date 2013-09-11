@@ -121,15 +121,18 @@ protected:
   Resolution resolution_;
 };
 
-template <typename CellType>
-class GridMap : public GridMapBase
+template <typename _CellType, typename _BaseType = GridMapBase>
+class GridMap : public _BaseType
 {
 public:
+  typedef _CellType CellType;
+  typedef _BaseType BaseType;
+
   struct Parameters : public GridMapParameters, public CellType::Parameters {};
   typedef typename CellType::Parameters CellParameters;
 
   template <typename ParameterType> GridMap(const ParameterType& params = ParameterType())
-    : GridMapBase(params)
+    : _BaseType(params)
     , cell_params_(internal::ParameterAdaptor<CellParameters>(params))
   {
   }
@@ -141,8 +144,8 @@ public:
   // convenience access functions
   CellType& operator()(const GridIndex& key)             { return *get(key); }
   const CellType& operator()(const GridIndex& key) const { return *get(key); }
-  CellType& operator()(const Point& point)               { return *get(toGridIndex(point)); }
-  const CellType& operator()(const Point& point) const   { return *get(toGridIndex(point)); }
+  CellType& operator()(const Point& point)               { return *get(this->toGridIndex(point)); }
+  const CellType& operator()(const Point& point) const   { return *get(this->toGridIndex(point)); }
 
   // get cell parameter struct
   const CellParameters& getCellParameters() const { return cell_params_; }
@@ -151,14 +154,15 @@ private:
   CellParameters cell_params_;
 };
 
-template <typename CellType, typename Structure>
-class GridMapImpl : public GridMap<CellType>, public Structure
+template <typename GridMapType, typename Structure>
+class GridMapImpl : public GridMapType, public Structure
 {
 public:
-  struct Parameters : public GridMap<CellType>::Parameters, virtual public Structure::Parameters {};
+  typedef typename GridMapType::CellType CellType;
+  struct Parameters : public GridMapType::Parameters, virtual public Structure::Parameters {};
 
   template <typename ParameterType> GridMapImpl(const ParameterType& params = ParameterType())
-    : GridMap<CellType>(params)
+    : GridMapType(params)
     , Structure(params)
   {}
   virtual ~GridMapImpl() {}

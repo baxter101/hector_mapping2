@@ -101,9 +101,7 @@ GridIndex GridMapBase::getNeighbourIndex(const GridIndex &key, unsigned int axis
   return neighbor;
 }
 
-void toOccupancyGridMessage(const GridMapBase& map_in, nav_msgs::OccupancyGrid& message, float_t z) {
-  // cast map in an OccupancyGridMap. This will throw if the GridMapBase is not an OccupancyGridMap.
-  const OccupancyGridMap& map = dynamic_cast<const OccupancyGridMap &>(map_in);
+void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z) {
 
   // set header
   message.header = map.getHeader();
@@ -129,9 +127,9 @@ void toOccupancyGridMessage(const GridMapBase& map_in, nav_msgs::OccupancyGrid& 
   GridIndex index = { 0, 0, map.toGridIndexAxis(z, 2) };
   for( ; index[1] < map.getSize().y(); index[1]++) {
     for( ; index[0] < map.getSize().x(); index[0]++, data++) {
-      const OccupancyGridCell& cell = map(index);
-      if (cell.isFree(map.getCellParameters())) *data = 0;
-      else if (cell.isOccupied(map.getCellParameters())) *data = 100;
+      const OccupancyGridCell* cell = map.getOccupancy(index);
+      if (cell->isFree(map.getOccupancyParameters())) *data = 0;
+      else if (cell->isOccupied(map.getOccupancyParameters())) *data = 100;
       else *data = -1;
     }
   }
