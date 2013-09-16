@@ -49,7 +49,7 @@ Node::Node()
 
 Node::~Node()
 {
-
+  map_publish_thread_.join();
 }
 
 void Node::reset()
@@ -210,6 +210,12 @@ void Node::onInit()
   // subscribe scan
   scan_subscriber_ = getNodeHandle().subscribe<sensor_msgs::LaserScan>("scan", 10, &Node::scanCallback, this);
 
+  // initial pose subscriber
+  initial_pose_subscriber_ = getNodeHandle().subscribe<geometry_msgs::PoseWithCovarianceStamped>("initial_pose", 10, &Node::initialPoseCallback, this);
+
+  // static map subscriber
+  static_map_subscriber_ = getNodeHandle().subscribe<nav_msgs::OccupancyGrid>("static_map", 10, &Node::staticMapCallback, this);
+
   // subscribe syscommand (reset)
   syscommand_subscriber_ = getNodeHandle().subscribe<std_msgs::String>("syscommand", 10, &Node::syscommandCallback, this);
 
@@ -231,10 +237,17 @@ void Node::onInit()
     getTransformBroadcaster();
   }
 
-  // setup map publish timer
-  double p_map_publish_period_ = 1.0;
-  getPrivateNodeHandle().getParam("map_publish_period", p_map_publish_period_);
-  if (p_map_publish_period_ > 0.0) map_publish_timer_ = getNodeHandle().createTimer(ros::Duration(p_map_publish_period_), boost::bind(&Node::publishMap, this));
+  // advertise scan cloud
+  bool p_publish_scan_cloud = true;
+  getPrivateNodeHandle().getParam("publish_scan_cloud", p_publish_scan_cloud);
+  if (p_publish_scan_cloud) scan_.advertisePointCloud(getPrivateNodeHandle());
+
+  // setup map publish thread
+  double p_map_publish_period = 1.0;
+  getPrivateNodeHandle().getParam("map_publish_period", p_map_publish_period);
+  if (p_map_publish_period > 0.0) {
+    map_publish_thread_ = boost::thread(boost::bind(&Node::mapPublishThread, this, ros::Rate(ros::Duration(p_map_publish_period))));
+  }
 
   // reset
   reset();
@@ -258,9 +271,12 @@ void Node::scanCallback(const sensor_msgs::LaserScanConstPtr& scan)
   float_t position_difference, orientation_difference;
   matcher_->getPoseDifference(last_map_update_pose_, position_difference, orientation_difference);
   if (map_->empty() || position_difference > p_map_update_translational_threshold_ || orientation_difference > p_map_update_angular_threshold_) {
-    map_->insert(scan_, matcher_->getTransform());
+    ros::WallTime _map_update_start = ros::WallTime::now();
+      map_->insert(scan_, matcher_->getTransform());
+    ROS_DEBUG("Map update took %f seconds.", (ros::WallTime::now() - _map_update_start).toSec());
+
     last_map_update_pose_ = matcher_->getTransform();
-    last_map_update_time_ = matcher_->getStamp();
+    last_map_update_time_ = scan_.getStamp();
   }
 
   // publish pose
@@ -268,6 +284,37 @@ void Node::scanCallback(const sensor_msgs::LaserScanConstPtr& scan)
 
   // publish tf
   if (p_pub_map_odom_transform_) publishTf();
+}
+
+void Node::initialPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &initial_pose)
+{
+  tf::Pose initial_pose_tf;
+  tf::poseMsgToTF(initial_pose->pose.pose, initial_pose_tf);
+
+  // transform pose to map frame
+  tf::StampedTransform pose_map_transform;
+  try {
+    getTransformListener().waitForTransform(p_map_frame_, initial_pose->header.frame_id, initial_pose->header.stamp, ros::Duration(1.0));
+    getTransformListener().lookupTransform(p_map_frame_, initial_pose->header.frame_id, initial_pose->header.stamp, pose_map_transform);
+  } catch(tf::TransformException& e) {
+    ROS_ERROR("Could not transform initial pose: %s", e.what());
+    return;
+  }
+  initial_pose_tf = pose_map_transform * initial_pose_tf;
+
+  // test scan matcher mode
+  if (true) {
+    matcher_->evaluate(*map_, scan_, initial_pose_tf);
+    return;
+  }
+
+  matcher_->setInitialTransform(initial_pose_tf);
+}
+
+void Node::staticMapCallback(const nav_msgs::OccupancyGridConstPtr &static_map)
+{
+  ROS_ERROR("static_map feature is not implemented yet!");
+  return;
 }
 
 void Node::syscommandCallback(const std_msgs::StringConstPtr& syscommand)
@@ -288,6 +335,7 @@ void Node::publishMap()
 {
   if (!map_) return;
 
+  // map publisher is latching. Should the map always be published here?
   if (map_publisher_ && map_publisher_.getNumSubscribers() > 0) {
     toOccupancyGridMessage(*map_, map_message_);
     map_publisher_.publish(map_message_);
@@ -306,20 +354,22 @@ void Node::publishTf()
   if (!matcher_ || matcher_->getStamp().isZero()) return;
 
   // get odom -> base transform
-  tf::StampedTransform odom_base_transform_;
+  tf::StampedTransform base_odom_transform;
   try {
     getTransformListener().waitForTransform(p_base_frame_, p_odom_frame_, matcher_->getStamp(), ros::Duration(1.0));
-    getTransformListener().lookupTransform(p_base_frame_, p_odom_frame_, matcher_->getStamp(), odom_base_transform_);
+    getTransformListener().lookupTransform(p_base_frame_, p_odom_frame_, matcher_->getStamp(), base_odom_transform);
   } catch(tf::TransformException& e) {
-    ROS_ERROR("%s", e.what());
+    ROS_ERROR("Could not transform from odom frame to base frame: %s", e.what());
     return;
   }
 
   // get map -> base transform from scan matcher
-  tf::StampedTransform map_base_transform_ = matcher_->getStampedTransform();
+  tf::StampedTransform map_base_transform = matcher_->getStampedTransform();
 
   // publish map -> odom transform
-  getTransformBroadcaster().sendTransform(tf::StampedTransform(odom_base_transform_.inverse() * map_base_transform_, matcher_->getStamp(), p_map_frame_, p_odom_frame_));
+//  tf::StampedTransform map_odom_transform = tf::StampedTransform(map_base_transform * odom_base_transform.inverse(), matcher_->getStamp(), p_map_frame_, p_odom_frame_);
+  tf::StampedTransform map_odom_transform = tf::StampedTransform(map_base_transform * base_odom_transform, matcher_->getStamp(), p_map_frame_, p_odom_frame_);
+  getTransformBroadcaster().sendTransform(map_odom_transform);
 }
 
 tf::TransformListener &Node::getTransformListener() {
@@ -330,6 +380,14 @@ tf::TransformListener &Node::getTransformListener() {
 tf::TransformBroadcaster &Node::getTransformBroadcaster() {
   if (!tf_broadcaster_) tf_broadcaster_.reset(new tf::TransformBroadcaster());
   return *tf_broadcaster_;
+}
+
+void Node::mapPublishThread(ros::Rate rate)
+{
+  while(ros::ok()) {
+    publishMap();
+    rate.sleep();
+  }
 }
 
 } // namespace hector_mapping

@@ -47,10 +47,11 @@ class Ceres : public ScanMatcher
 public:
   Ceres(const Parameters& params);
   virtual ~Ceres();
-  virtual bool match(const OccupancyGridMapBase &map, const Scan &scan, MatchOptions options);
+  virtual bool match(const OccupancyGridMapBase &map, const Scan &scan, MatchType options);
+  virtual double evaluate(const OccupancyGridMapBase& map, const Scan& scan, const tf::Transform& pose, MatchType type) const;
 
 private:
-  template <MatchOptions> class Solver;
+  template <MatchType> class Solver;
   ceres::Solver::Options ceres_options_;
 };
 

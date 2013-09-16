@@ -32,6 +32,7 @@
 
 #include <hector_mapping_core/types.h>
 #include <hector_mapping_core/internal/axes.h>
+#include <hector_mapping_core/internal/jet_opts.h>
 
 #include <Eigen/Geometry>
 
@@ -54,11 +55,20 @@ public:
     Eigen::AngleAxis<T> rotation(theta[0], Eigen::Matrix<T,3,1>::UnitZ());
     Eigen::Matrix<T, 4, 4> transform;
     transform << rotation.toRotationMatrix(), translation, T(0.), T(0.), T(0.), T(1.);
+//    std::cout << ceres::JetOps<T>::GetScalar(*x) << " " << ceres::JetOps<T>::GetScalar(*y) << " " << ceres::JetOps<T>::GetScalar(*theta) << ": " << std::endl;
+//    Eigen::Matrix<double,4,4> transformd;
+//    transformd << ceres::JetOps<T>::GetScalar(transform(0,0)), ceres::JetOps<T>::GetScalar(transform(0,1)), ceres::JetOps<T>::GetScalar(transform(0,2)), ceres::JetOps<T>::GetScalar(transform(0,3)),
+//                  ceres::JetOps<T>::GetScalar(transform(1,0)), ceres::JetOps<T>::GetScalar(transform(1,1)), ceres::JetOps<T>::GetScalar(transform(1,2)), ceres::JetOps<T>::GetScalar(transform(1,3)),
+//                  ceres::JetOps<T>::GetScalar(transform(2,0)), ceres::JetOps<T>::GetScalar(transform(2,1)), ceres::JetOps<T>::GetScalar(transform(2,2)), ceres::JetOps<T>::GetScalar(transform(2,3)),
+//                  ceres::JetOps<T>::GetScalar(transform(3,0)), ceres::JetOps<T>::GetScalar(transform(3,1)), ceres::JetOps<T>::GetScalar(transform(3,2)), ceres::JetOps<T>::GetScalar(transform(3,3));
+//    std::cout << transformd << std::endl;
     Eigen::Matrix<T, 4, 1> endpoint(T(endpoint_.x()), T(endpoint_.y()), T(endpoint_.z()), T(1.));
     Eigen::Matrix<T, 4, 1> world = transform * endpoint;
     T probability;
-    if (!map_.getValue(probability, world, level_)) return false;
-    residual[0] = 1. - probability;
+    if (map_.getValue(probability, world, level_))
+      residual[0] = 1. - probability;
+    else
+      residual[0] = T(0.);
     return true;
   }
 
@@ -86,9 +96,9 @@ public:
     Eigen::Matrix<T, 3, 1> translation(x[0], y[0], T(0.));
     Eigen::AngleAxis<T> rotation(theta[0], Eigen::Matrix<T,3,1>::UnitZ());
     Eigen::Matrix<T, 4, 4> transform;
-    transform << rotation.toRotationMatrix(), translation, Eigen::Matrix<T,4,1>::Unit(3);
+    transform << rotation.toRotationMatrix(), translation, T(0.), T(0.), T(0.), T(1.);
 
-    float_t norm = Point2(endpoint_.x(), endpoint_.y()).norm();
+    float_t norm = endpoint_.norm();
     float_t voxel_diagonal_length = map_.getResolution(level_).norm();
 
     for (int i = 0; i < steps_; ++i) {
@@ -99,7 +109,11 @@ public:
         float_t factor = free_voxel_distance / norm;
         Eigen::Matrix<T, 4, 1> point(T(factor * endpoint_.x()), T(factor * endpoint_.y()), T(factor * endpoint_.z()), T(1.));
         Eigen::Matrix<T, 4, 1> world = transform * point;
-        if (!map_.getValue(residual[i], world, level_)) return false;
+        T probability;
+        if (map_.getValue(probability, world, level_))
+          residual[0] = probability;
+        else
+          residual[0] = T(0.);
       }
     }
     return true;

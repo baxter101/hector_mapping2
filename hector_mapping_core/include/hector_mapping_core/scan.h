@@ -39,6 +39,8 @@
 
 #include <limits>
 
+#include <ros/publisher.h>
+
 // forward declarations
 namespace laser_geometry { class LaserProjection; }
 namespace tf { class Transformer; }
@@ -53,13 +55,7 @@ class ScanParameters {
   PARAMETER(ScanParameters, double, max_z);
 
 public:
-  ScanParameters()
-    : min_distance_(0.0)
-    , max_distance_(-1.0)
-    , channel_options_(0)
-    , min_z_(-std::numeric_limits<double>::infinity())
-    , max_z_( std::numeric_limits<double>::infinity())
-  {}
+  ScanParameters();
 };
 
 class Scan
@@ -71,9 +67,13 @@ public:
   virtual ~Scan();
 
   Scan& setTransformer(tf::Transformer& tf, const std::string &target_frame);
+  ros::Publisher advertisePointCloud(ros::NodeHandle& nh, std::string topic = std::string());
 
   const std_msgs::Header &getHeader() const { return header_; }
   const ros::Time &getStamp() const { return header_.stamp; }
+
+  const tf::StampedTransform& getStampedTransform() const { return transform_; }
+  const tf::Transform& getTransform() const { return transform_; }
 
   bool valid() const;
   void clear();
@@ -93,8 +93,10 @@ private:
 
   std_msgs::Header header_;
   std::vector<Point> points_;
+  tf::StampedTransform transform_;
 
   boost::shared_ptr<laser_geometry::LaserProjection> laser_projection_;
+  ros::Publisher scan_cloud_publisher_;
 };
 
 } // namespace hector_mapping

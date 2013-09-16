@@ -32,12 +32,12 @@
 
 #include <hector_mapping_core/structure/structure.h>
 #include <hector_mapping_core/internal/axes.h>
+
 #include <vector>
 
 #include <ros/console.h>
 
 namespace hector_mapping {
-
 namespace structure {
 
 // The Array class.

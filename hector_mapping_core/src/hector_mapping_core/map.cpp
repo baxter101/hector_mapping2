@@ -36,9 +36,20 @@ MapFactory::MapFactory(const Parameters &_params) : params_(_params) {}
 
 MapBase::MapBase(const Parameters &_params)
   : params_(_params)
+  , empty_(true)
 {
   params()("map_offset", offset_).default_value(Point(0.0, 0.0, 0.0));
   header_.frame_id = params().get<std::string>("map_frame");
+}
+
+void MapBase::reset()
+{
+  empty_ = true;
+}
+
+void MapBase::updated()
+{
+  empty_ = false;
 }
 
 GridMapBase::GridMapBase(const Parameters& _params)

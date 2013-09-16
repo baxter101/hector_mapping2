@@ -59,12 +59,16 @@ public:
   void reset();
 
   void scanCallback(const sensor_msgs::LaserScanConstPtr& scan);
+  void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& initial_pose);
+  void staticMapCallback(const nav_msgs::OccupancyGridConstPtr& static_map);
   void syscommandCallback(const std_msgs::StringConstPtr& syscommand);
   bool mapServiceCallback(nav_msgs::GetMap::Request& request, nav_msgs::GetMap::Response& response);
 
   void publishMap();
   void publishPose();
   void publishTf();
+
+  void mapPublishThread(ros::Rate rate);
 
 protected:
   Parameters parameters_;
@@ -93,11 +97,13 @@ protected:
 
 private:
   ros::Subscriber scan_subscriber_;
+  ros::Subscriber initial_pose_subscriber_;
+  ros::Subscriber static_map_subscriber_;
   ros::Subscriber syscommand_subscriber_;
   ros::Publisher pose_publisher_;
 
-  ros::Timer map_publish_timer_;
   ros::Publisher map_publisher_;
+  boost::thread map_publish_thread_;
 
   ros::ServiceServer map_service_;
 };

@@ -33,6 +33,14 @@
 
 namespace hector_mapping {
 
+ScanParameters::ScanParameters()
+  : min_distance_(0.0)
+  , max_distance_(-1.0)
+  , channel_options_(0)
+  , min_z_(-std::numeric_limits<double>::quiet_NaN())
+  , max_z_( std::numeric_limits<double>::quiet_NaN())
+{}
+
 Scan::Scan(const Parameters& _params)
   : tf_(0)
 {
@@ -48,6 +56,13 @@ Scan &Scan::setTransformer(tf::Transformer &tf, const std::string &target_frame)
 {
   tf_ = &tf;
   target_frame_ = target_frame;
+}
+
+ros::Publisher Scan::advertisePointCloud(ros::NodeHandle& nh, std::string topic)
+{
+  if (topic.empty()) topic = "scan_cloud";
+  scan_cloud_publisher_ = nh.advertise<sensor_msgs::PointCloud2>(topic, 10);
+  return scan_cloud_publisher_;
 }
 
 bool Scan::valid() const
@@ -103,6 +118,19 @@ namespace internal {
 
 Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
 {
+  sensor_msgs::PointCloud2Ptr filtered_cloud;
+
+  if (scan_cloud_publisher_) {
+    filtered_cloud.reset(new sensor_msgs::PointCloud2);
+    filtered_cloud->header = cloud.header;
+    filtered_cloud->height = 1;
+    filtered_cloud->fields = cloud.fields;
+    filtered_cloud->is_bigendian = cloud.is_bigendian;
+    filtered_cloud->point_step = cloud.point_step;
+    filtered_cloud->row_step = 0;
+    filtered_cloud->is_dense = true;
+  }
+
   // save header
   header_ = cloud.header;
 
@@ -131,8 +159,18 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
       ++i, it += cloud.point_step) {
     const uint8_t *data = &(*it);
     Point point(x(data), y(data), z(data));
-    if (point.norm() < scan_params_.min_distance()) continue;
+    double distance = point.norm();
+    if (distance >= scan_params_.max_distance()) continue;
+    if (distance <  scan_params_.min_distance()) continue;
+    if (point.z() < scan_params_.min_z()) continue;
+    if (point.z() > scan_params_.max_z()) continue;
     points_.push_back(point);
+    if (filtered_cloud) filtered_cloud->data.insert(filtered_cloud->data.end(), it, it + cloud.point_step);
+  }
+
+  if (filtered_cloud) {
+    filtered_cloud->width = points_.size();
+    scan_cloud_publisher_.publish(filtered_cloud);
   }
 
   return *this;

@@ -40,8 +40,8 @@ OccupancyParameters::OccupancyParameters()
   : min_occupancy_(std::numeric_limits<occupancy_t>::min())
   , max_occupancy_(std::numeric_limits<occupancy_t>::max())
   , initial_value_(0)
-  , step_occupied_(1)
-  , step_free_(-1)
+  , step_occupied_(10)
+  , step_free_(-2)
   , threshold_occupied_(0)
   , threshold_free_(0)
   , logodd_scale_factor_(10.0)
@@ -52,9 +52,13 @@ OccupancyParameters &OccupancyParameters::Default() {
   return s_default;
 }
 
-occupancy_t OccupancyParameters::getOccupancy(float probability) const {
-  float logodd = getLogOdd(probability);
+occupancy_t OccupancyParameters::getOccupancy(probability_t probability) const {
+  probability_t logodd = getLogOdd(probability);
   int occupancy = floor(logodd * logodd_scale_factor_ + .5f);
+  return applyBounds(occupancy);
+}
+
+occupancy_t OccupancyParameters::applyBounds(int occupancy) const {
   if (occupancy < min_occupancy_) occupancy = min_occupancy_;
   if (occupancy > max_occupancy_) occupancy = max_occupancy_;
   return static_cast<occupancy_t>(occupancy);
@@ -68,11 +72,9 @@ OccupancyGridCell::OccupancyGridCell(const OccupancyParameters &params)
 OccupancyGridCell::~OccupancyGridCell()
 {}
 
-void OccupancyGridCell::setValue(occupancy_t occupancy, const OccupancyParameters &params)
+void OccupancyGridCell::setOccupancy(occupancy_t occupancy, const OccupancyParameters &params)
 {
-  value_ = occupancy;
-  if (value_ > params.max_occupancy()) value_ = params.max_occupancy();
-  if (value_ < params.min_occupancy()) value_ = params.min_occupancy();
+  occupancy_ = params.applyBounds(occupancy);
 }
 
 bool OccupancyGridCell::isUnknown(const OccupancyParameters &params) const
@@ -82,54 +84,56 @@ bool OccupancyGridCell::isUnknown(const OccupancyParameters &params) const
 
 bool OccupancyGridCell::isFree(const OccupancyParameters &params) const
 {
-  return value_ < params.threshold_free();
+  return occupancy_ < params.threshold_free();
 }
 
 bool OccupancyGridCell::isOccupied(const OccupancyParameters &params) const
 {
-  return value_ > params.threshold_occupied();
+  return occupancy_ > params.threshold_occupied();
 }
 
 void OccupancyGridCell::updateOccupied(const OccupancyParameters &params)
 {
-  setValue(value_ + params.step_occupied(), params);
+  setOccupancy(occupancy_ + params.step_occupied(), params);
 }
 
 void OccupancyGridCell::updateFree(const OccupancyParameters &params)
 {
-  setValue(value_ + params.step_free(), params);
+  setOccupancy(occupancy_ + params.step_free(), params);
 }
 
 void OccupancyGridCell::undoUpdateFree(const OccupancyParameters &params)
 {
-  setValue(value_ - params.step_free(), params);
+  setOccupancy(occupancy_ - params.step_free(), params);
 }
 
 void OccupancyGridCell::reset(const OccupancyParameters &params)
 {
-  value_ = params.initial_value();
+  occupancy_ = params.initial_value();
 }
 
 OccupancyGridMapBase::OccupancyGridMapBase(const Parameters& _params)
   : GridMapBase(_params)
   , occupancy_parameters_(params().add<OccupancyParameters>("occupancy", OccupancyParameters::Default()))
-  , empty_(true)
 {}
 
 OccupancyGridMapBase::~OccupancyGridMapBase()
 {}
 
-void OccupancyGridMapBase::reset()
-{
-  empty_ = true;
-}
-
 OccupancyGridMapBase::ValueType OccupancyGridMapBase::getValue(const GridIndex& key, int level) const {
-  const OccupancyGridCell *occupancy = getOccupancy(key, level);
-  if (!occupancy) return std::numeric_limits<ValueType>::quiet_NaN();
-  return occupancy->getProbability(getOccupancyParameters());
-}
+  // lookup value in cache
+  CachePtr cache = this->cache();
+  CacheKey cache_key(key, level);
+  if (cache->count(cache_key)) return (*cache)[cache_key];
 
+  if (!isValid(key)) return std::numeric_limits<ValueType>::quiet_NaN();
+  const OccupancyGridCell *occupancy = get(key, level);
+  if (!occupancy) return std::numeric_limits<ValueType>::quiet_NaN();
+
+  probability_t probability = occupancy->getProbability(getOccupancyParameters());
+  (*cache)[cache_key] = probability;
+  return probability;
+}
 
 bool OccupancyGridMapBase::insert(const Scan &scan, const tf::Transform &transform)
 {
@@ -140,6 +144,9 @@ bool OccupancyGridMapBase::insert(const Scan &scan, const tf::Transform &transfo
 
 bool OccupancyGridMapBase::insert(const Scan &scan, const Eigen::Affine3d &transform)
 {
+  // acquire a unique lock
+  MapBase::UniqueLock lock(getWriteLock());
+
   // initialize sets to remember free and occupied cells
   GridIndexSet updated_occupied;
   GridIndexSet updated_free;
@@ -211,6 +218,9 @@ bool OccupancyGridMapBase::insert(const Scan &scan, const Eigen::Affine3d &trans
 
   ROS_DEBUG("Inserted scan with %lu endpoints. %lu cells have been updated as occupied and %lu as free.", scan.size(), updated_occupied.size(), updated_free.size());
   if (updated_occupied.size() > 0) empty_ = false;
+
+  // notify the map that there have been updates
+  updated();
 }
 
 void OccupancyGridMapBase::updateFree(const GridIndex &key, GridIndexSet &occupied, GridIndexSet &free)
@@ -222,7 +232,7 @@ void OccupancyGridMapBase::updateFree(const GridIndex &key, GridIndexSet &occupi
   if (free.count(key)) return;
 
   // get cell
-  OccupancyGridCell *cell = getOccupancy(key);
+  OccupancyGridCell *cell = get(key);
 
   // update occupancy
   cell->updateFree(getOccupancyParameters());
@@ -237,7 +247,7 @@ void OccupancyGridMapBase::updateOccupied(const GridIndex &key, GridIndexSet &oc
   if (occupied.count(key)) return;
 
   // get cell
-  OccupancyGridCell *cell = getOccupancy(key);
+  OccupancyGridCell *cell = get(key);
 
   // undo the free update if this cell has been marked as free
   if (free.count(key)) {

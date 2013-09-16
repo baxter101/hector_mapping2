@@ -39,7 +39,7 @@
 #include <boost/array.hpp>
 #include <Eigen/Geometry>
 
-#include <std_msgs/Header.h>
+#include <boost/thread/shared_mutex.hpp>
 
 namespace hector_mapping
 {
@@ -73,18 +73,29 @@ public:
   const Point& getOffset() const { return offset_; }
   virtual void setOffset(const Point &offset) { offset_ = offset; }
 
-  virtual bool empty() { return false; }
-  virtual void reset() {}
+  virtual bool empty() { return empty_; }
+  virtual void reset();
 
   const std_msgs::Header& getHeader() const { return header_; }
   std_msgs::Header& getHeader() { return header_; }
 
+  typedef boost::shared_mutex Mutex;
+  typedef boost::shared_lock<boost::shared_mutex> SharedLock;
+  typedef boost::unique_lock<boost::shared_mutex> UniqueLock;
+  SharedLock getLock() const { return SharedLock(mutex_); }
+  UniqueLock getWriteLock() { return UniqueLock(mutex_); }
+
+protected:
+  virtual void updated();
+
 private:
   Parameters params_;
+  mutable Mutex mutex_;
 
 protected:
   Parameter<Point> offset_;
   std_msgs::Header header_;
+  bool empty_;
 };
 
 class GridMapBase : public MapBase
@@ -124,8 +135,12 @@ template <typename _CellType, typename _BaseType = GridMapBase>
 class GridMap : public _BaseType
 {
 public:
-  typedef _CellType CellType;
   typedef _BaseType BaseType;
+  typedef _CellType CellType;
+  typedef typename _CellType::ValueType ValueType;
+
+  typedef boost::unordered_map<CacheKey, ValueType> Cache;
+  typedef boost::shared_ptr<Cache> CachePtr;
 
   GridMap(const Parameters& params = Parameters())
     : _BaseType(params)
@@ -135,11 +150,30 @@ public:
   virtual CellType *get(const GridIndex& key, int level = 0) = 0;
   virtual const CellType *get(const GridIndex& key, int level = 0) const = 0;
 
+  virtual CellType *get(const Point& point, int level = 0)             { return get(this->toGridIndex(point), level); }
+  virtual const CellType *get(const Point& point, int level = 0) const { return get(this->toGridIndex(point), level); }
+
+  virtual ValueType getValue(const GridIndex& key, int level = 0) const { return get(key, level)->getValue(); }
+  virtual ValueType getValue(const Point& point, int level = 0) const   { return get(point, level)->getValue(); }
+
+  CachePtr cache() const {
+    if (!cache_) cache_.reset(new Cache());
+    return cache_;
+  }
+
+  void updated() {
+    if (cache_) cache_->clear();
+    BaseType::updated();
+  }
+
   // convenience access functions
   CellType& operator()(const GridIndex& key, int level = 0)             { return *get(key, level); }
   const CellType& operator()(const GridIndex& key, int level = 0) const { return *get(key, level); }
-  CellType& operator()(const Point& point, int level = 0)               { return *get(this->toGridIndex(point), level); }
-  const CellType& operator()(const Point& point, int level = 0) const   { return *get(this->toGridIndex(point), level); }
+  CellType& operator()(const Point& point, int level = 0)               { return *get(point, level); }
+  const CellType& operator()(const Point& point, int level = 0) const   { return *get(point, level); }
+
+private:
+  mutable CachePtr cache_;
 };
 
 template <typename GridMapType, typename Structure>
@@ -166,6 +200,7 @@ public:
   virtual typename Structure::NestedType *getNested(const GridIndex& key, int level = 0) { return Structure::get(key, level); }
   virtual const typename Structure::NestedType *getNested(const GridIndex& key, int level = 0) const { return Structure::get(key, level); }
 
+  using GridMapType::get;
   virtual CellType *get(const GridIndex& key, int level = 0) { return GetCell<CellType,Structure>::get(*this, key, level); }
   virtual const CellType *get(const GridIndex& key, int level = 0) const { return GetCell<CellType,Structure>::get(*this, key, level); }
 };

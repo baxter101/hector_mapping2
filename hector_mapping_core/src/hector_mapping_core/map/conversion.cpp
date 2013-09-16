@@ -34,6 +34,9 @@ namespace hector_mapping
 
 void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z) {
 
+  // acquire a shared lock
+  MapBase::SharedLock lock(map.getLock());
+
   // set header
   message.header = map.getHeader();
 
@@ -63,7 +66,7 @@ void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::Occupancy
   GridIndex index(0, 0, map.toGridIndexAxis(z, 2));
   for(index[1] = min_index[1]; index[1] <= max_index[1]; index[1]++) {
     for(index[0] = min_index[0]; index[0] <= max_index[0]; index[0]++, data++) {
-      const OccupancyGridCell* cell = map.getOccupancy(index, level::SEARCH);
+      const OccupancyGridCell* cell = map.get(index, level::SEARCH);
       if (cell->isFree(map.getOccupancyParameters())) *data = 0;
       else if (cell->isOccupied(map.getOccupancyParameters())) *data = 100;
       else *data = -1;

@@ -33,7 +33,7 @@ namespace hector_mapping {
 
 ScanMatcherParameters::ScanMatcherParameters()
   : match_level_minimum_(0),
-    match_level_maximum_(3),
+    match_level_maximum_(2),
     occupied_space_residual_weight_(1.0),
     free_space_residual_weight_(0.0),
     motion_residual_weight_(0.0),

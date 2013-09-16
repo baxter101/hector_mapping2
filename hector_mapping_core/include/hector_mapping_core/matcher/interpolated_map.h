@@ -38,14 +38,13 @@ namespace internal {
 
   // TODO: implement for other axes types than XY
   template <typename MapType, typename Axes, typename MatrixType>
-  bool getInterpolationMatrix(const MapType& map, const Point& lower_left_center, int level, MatrixType& P) {
-    GridIndex index = map.toGridIndex(lower_left_center);
+  bool getInterpolationMatrix(const MapType& map, const GridIndex& lower_left, int level, MatrixType& P) {
     index_t columns = P.cols();
     index_t rows = P.rows();
     index_t step = 1u << level;
     for (index_t dx = 0; dx < columns; ++dx) {
       for (index_t dy = 0; dy < rows; ++dy) {
-        typename MapType::ValueType value = map.getValue(GridIndex(index.x() + dx * step, index.y() + dy * step, index.z()), level);
+        typename MapType::ValueType value = map.getValue(GridIndex(lower_left.x() + dx * step, lower_left.y() + dy * step, lower_left.z()), level);
         if (!(value == value)) return false;
         P(dx, dy) = (typename MatrixType::Scalar)(value);
       }
@@ -74,11 +73,11 @@ public:
     // upper-right center
     Point p1(p0 + resolution);
 
-    Eigen::Matrix<T,2,2> P;
-    if (!internal::getInterpolationMatrix<MapType, axes::XY>(map_, p0, level, P)) return false;
+    Eigen::Matrix<typename MapType::ValueType,2,2> P;
+    if (!internal::getInterpolationMatrix<MapType, axes::XY>(map_, map_.toGridIndex(p0), level, P)) return false;
 
-    value = ((point.y() - T(p0.y())) * ((point.x() - T(p0.x())) * P(1,1) + (T(p1.x()) - point.x()) * P(0,1)) +
-             (T(p1.y()) - point.y()) * ((point.x() - T(p0.x())) * P(1,0) + (T(p1.x()) - point.x()) * P(0,0))) / T((p1.y() - p0.y()) * (p1.x() - p0.x()));
+    value = ((point.y() - T(p0.y())) * ((point.x() - T(p0.x())) * T(P(1,1)) + (T(p1.x()) - point.x()) * T(P(0,1))) +
+             (T(p1.y()) - point.y()) * ((point.x() - T(p0.x())) * T(P(1,0)) + (T(p1.x()) - point.x()) * T(P(0,0)))) / T((p1.y() - p0.y()) * (p1.x() - p0.x()));
     return true;
   }
 

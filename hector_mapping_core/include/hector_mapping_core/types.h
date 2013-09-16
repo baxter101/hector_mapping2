@@ -33,6 +33,10 @@
 #include <boost/array.hpp>
 #include <boost/shared_ptr.hpp>
 
+#include <boost/functional/hash.hpp>
+#include <boost/unordered_map.hpp>
+#include <boost/unordered_set.hpp>
+
 #include <Eigen/Geometry>
 #include <tf/transform_datatypes.h>
 
@@ -92,20 +96,25 @@ namespace hector_mapping
   class ScanMatcher;
   typedef boost::shared_ptr<ScanMatcher> ScanMatcherPtr;
 
-  struct GridIndexHash {
-    size_t operator()(const GridIndex& key) const{
-      return key[0] + 1337*key[1] + 345637*key[2];
-    }
-  };
-
-  typedef std::tr1::unordered_set<GridIndex, GridIndexHash> GridIndexSet;
-  typedef std::tr1::unordered_map<GridIndex, bool, GridIndexHash> GridIndexMap;
-
   // levels
   namespace level {
     enum { MAX = -1, SEARCH = -2 };
   }
 
+} // namespace hector_mapping
+
+namespace boost {
+  template <> struct hash<hector_mapping::GridIndex> {
+    size_t operator()(const hector_mapping::GridIndex& key) const{
+      return key[0] + 1337*key[1] + 345637*key[2];
+    }
+  };
+}
+
+namespace hector_mapping {
+  typedef std::pair<GridIndex,int> CacheKey;
+  typedef boost::unordered_set<GridIndex> GridIndexSet;
+  typedef boost::unordered_map<GridIndex, bool> GridIndexMap;
 } // namespace hector_mapping
 
 #include <hector_mapping_core/internal/comparisons.h>

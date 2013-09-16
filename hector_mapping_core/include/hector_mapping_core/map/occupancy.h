@@ -34,13 +34,11 @@
 #include <hector_mapping_core/map/cell.h>
 #include <hector_mapping_core/internal/macros.h>
 
-#include <limits>
-#include <set>
-
 namespace hector_mapping
 {
 
 typedef int16_t occupancy_t;
+typedef float probability_t;
 
 class OccupancyParameters
 {
@@ -51,29 +49,30 @@ class OccupancyParameters
   PARAMETER(OccupancyParameters, occupancy_t, step_free);
   PARAMETER(OccupancyParameters, occupancy_t, threshold_occupied);
   PARAMETER(OccupancyParameters, occupancy_t, threshold_free);
-  PARAMETER(OccupancyParameters, float, logodd_scale_factor);
+  PARAMETER(OccupancyParameters, probability_t, logodd_scale_factor);
 
 public:
   OccupancyParameters();
   static OccupancyParameters &Default();
 
-  float getProbability(occupancy_t occupancy) const {
+  probability_t getProbability(occupancy_t occupancy) const {
     return probabilityFromLogOdd(occupancy / logodd_scale_factor_);
   }
 
-  float getLogOdd(occupancy_t occupancy) const {
+  probability_t getLogOdd(occupancy_t occupancy) const {
     return occupancy / logodd_scale_factor_;
   }
 
-  occupancy_t getOccupancy(float probability) const;
+  occupancy_t getOccupancy(probability_t probability) const;
+  occupancy_t applyBounds(int occupancy) const;
 
-  static float probabilityFromLogOdd(float logodd) {
-    float odd = exp(logodd);
+  static probability_t probabilityFromLogOdd(probability_t logodd) {
+    probability_t odd = exp(logodd);
     return odd / (odd + 1.0f);
   }
 
-  static float logOddFromProbability(float probability) {
-    float odd = probability / (1.0f - probability);
+  static probability_t logOddFromProbability(probability_t probability) {
+    probability_t odd = probability / (1.0f - probability);
     return log(odd);
   }
 };
@@ -81,42 +80,50 @@ public:
 class OccupancyGridCell : public GridCellBase
 {
 public:
+  typedef probability_t ValueType;
+
   OccupancyGridCell(const OccupancyParameters &parameters = OccupancyParameters::Default());
   ~OccupancyGridCell();
 
-  occupancy_t getValue() const { return value_; }
-  void setValue(occupancy_t occupancy, const OccupancyParameters &parameters = OccupancyParameters::Default());
+  occupancy_t getOccupancy() const { return occupancy_; }
+  void setOccupancy(occupancy_t occupancy, const OccupancyParameters &parameters);
 
-  bool isUnknown(const OccupancyParameters &parameters = OccupancyParameters::Default()) const;
-  bool isFree(const OccupancyParameters &parameters = OccupancyParameters::Default()) const;
-  bool isOccupied(const OccupancyParameters &parameters = OccupancyParameters::Default()) const;
+  ValueType getValue(const OccupancyParameters &parameters = OccupancyParameters::Default()) const { return getProbability(parameters); }
+  void setValue(ValueType probability, const OccupancyParameters &parameters = OccupancyParameters::Default()) { setProbability(probability, parameters); }
 
-  void updateOccupied(const OccupancyParameters &parameters = OccupancyParameters::Default());
-  void updateFree(const OccupancyParameters &parameters = OccupancyParameters::Default());
-  void undoUpdateFree(const OccupancyParameters &parameters = OccupancyParameters::Default());
+  probability_t getProbability(const OccupancyParameters &parameters) const { return parameters.getProbability(occupancy_); }
+  probability_t getLogOdd(const OccupancyParameters &parameters) const { return parameters.getLogOdd(occupancy_); }
+  void setProbability(probability_t probability, const OccupancyParameters &parameters) { occupancy_ = parameters.getOccupancy(probability); }
 
-  void reset(const OccupancyParameters &parameters = OccupancyParameters::Default());
+  bool isUnknown(const OccupancyParameters &parameters) const;
+  bool isFree(const OccupancyParameters &parameters) const;
+  bool isOccupied(const OccupancyParameters &parameters) const;
 
-  float getProbability(const OccupancyParameters &parameters = OccupancyParameters::Default()) const { return parameters.getProbability(getValue()); }
-  float getLogOdd(const OccupancyParameters &parameters = OccupancyParameters::Default()) const { return parameters.getLogOdd(getValue()); }
+  void updateOccupied(const OccupancyParameters &parameters);
+  void updateFree(const OccupancyParameters &parameters);
+  void undoUpdateFree(const OccupancyParameters &parameters);
+
+  void reset(const OccupancyParameters &parameters);
 
 private:
-  occupancy_t value_;
+  occupancy_t occupancy_;
 };
 
 class OccupancyGridMapBase : public GridMapBase
 {
 public:
-  typedef float ValueType;
+  typedef OccupancyGridCell::ValueType ValueType;
+  typedef boost::unordered_map<CacheKey, ValueType> Cache;
+  typedef boost::shared_ptr<Cache> CachePtr;
 
   OccupancyGridMapBase(const Parameters& params = Parameters());
   virtual ~OccupancyGridMapBase();
 
-  virtual OccupancyGridCell *getOccupancy(const GridIndex& key, int level = 0) = 0;
-  virtual const OccupancyGridCell *getOccupancy(const GridIndex& key, int level = 0) const = 0;
+  virtual OccupancyGridCell *get(const GridIndex& key, int level = 0) = 0;
+  virtual const OccupancyGridCell *get(const GridIndex& key, int level = 0) const = 0;
 
-  virtual OccupancyGridCell *getOccupancy(const Point& point, int level = 0)               { return getOccupancy(toGridIndex(point), level); }
-  virtual const OccupancyGridCell *getOccupancy(const Point& point, int level = 0) const   { return getOccupancy(toGridIndex(point), level); }
+  virtual OccupancyGridCell *get(const Point& point, int level = 0)               { return get(toGridIndex(point), level); }
+  virtual const OccupancyGridCell *get(const Point& point, int level = 0) const   { return get(toGridIndex(point), level); }
 
   virtual ValueType getValue(const GridIndex& key, int level = 0) const;
   virtual ValueType getValue(const Point& point, int level = 0) const { return getValue(toGridIndex(point), level); }
@@ -124,27 +131,25 @@ public:
   OccupancyParameters& getOccupancyParameters() { return occupancy_parameters_; }
   const OccupancyParameters& getOccupancyParameters() const { return occupancy_parameters_; }
 
-  virtual void reset();
-  virtual bool empty() { return empty_; }
-
   virtual bool insert(const Scan& scan, const tf::Transform& transform);
   virtual bool insert(const Scan& scan, const Eigen::Affine3d& transform);
+
+  virtual CachePtr cache() const = 0;
 
 private:
   void updateOccupied(const GridIndex& key, GridIndexSet& occupied, GridIndexSet& free);
   void updateFree(const GridIndex& key, GridIndexSet& occupied, GridIndexSet& free);
 
   OccupancyParameters &occupancy_parameters_;
-  bool empty_;
 };
 
 template <typename OccupancyCellType>
 class OccupancyGridMap : public GridMap<OccupancyCellType,OccupancyGridMapBase>
 {
 public:
-  using GridMap<OccupancyCellType,OccupancyGridMapBase>::BaseType;
-  using GridMap<OccupancyCellType,OccupancyGridMapBase>::CellType;
-  using OccupancyGridMapBase::ValueType;
+  using typename GridMap<OccupancyCellType,OccupancyGridMapBase>::BaseType;
+  using typename GridMap<OccupancyCellType,OccupancyGridMapBase>::CellType;
+  typedef typename OccupancyCellType::ValueType ValueType;
 
   OccupancyGridMap(const Parameters& _params = Parameters())
     : GridMap<OccupancyCellType,OccupancyGridMapBase>(_params)
@@ -152,13 +157,12 @@ public:
   }
   virtual ~OccupancyGridMap() {}
 
-  using GridMap<OccupancyCellType,OccupancyGridMapBase>::params;
-  using GridMap<OccupancyCellType,OccupancyGridMapBase>::operator();
-  using GridMap<OccupancyCellType,OccupancyGridMapBase>::get;
-  using GridMap<OccupancyCellType,OccupancyGridMapBase>::getOccupancy;
+//  using GridMap<OccupancyCellType,OccupancyGridMapBase>::params;
+//  using GridMap<OccupancyCellType,OccupancyGridMapBase>::operator();
+//  using GridMap<OccupancyCellType,OccupancyGridMapBase>::get;
 
-  virtual OccupancyGridCell *getOccupancy(const GridIndex& key, int level = 0)             { return GridMapBase::isValid(key) ? get(key, level) : 0; }
-  virtual const OccupancyGridCell *getOccupancy(const GridIndex& key, int level = 0) const { return GridMapBase::isValid(key) ? get(key, level) : 0; }
+  virtual ValueType getValue(const GridIndex& key, int level = 0) const { return OccupancyGridMapBase::getValue(key, level); }
+  virtual ValueType getValue(const Point& point, int level = 0) const   { return OccupancyGridMapBase::getValue(point, level); }
 };
 
 } // namespace hector_mapping
