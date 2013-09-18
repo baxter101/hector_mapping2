@@ -48,7 +48,7 @@ public:
   Ceres(const Parameters& params);
   virtual ~Ceres();
   virtual bool match(const OccupancyGridMapBase &map, const Scan &scan, MatchType options);
-  virtual double evaluate(const OccupancyGridMapBase& map, const Scan& scan, const tf::Transform& pose, MatchType type) const;
+  virtual double evaluate(const OccupancyGridMapBase& map, const Scan& scan, const tf::Transform& pose, std::string *resultString, MatchType type) const;
 
 private:
   template <MatchType> class Solver;

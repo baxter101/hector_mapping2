@@ -100,9 +100,11 @@ private:
   ros::Subscriber initial_pose_subscriber_;
   ros::Subscriber static_map_subscriber_;
   ros::Subscriber syscommand_subscriber_;
+  ros::Publisher pose_with_covariance_publisher_;
   ros::Publisher pose_publisher_;
 
   ros::Publisher map_publisher_;
+  ros::Publisher map_metadata_publisher_;
   boost::thread map_publish_thread_;
 
   ros::ServiceServer map_service_;

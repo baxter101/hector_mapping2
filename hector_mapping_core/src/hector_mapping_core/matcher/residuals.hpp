@@ -51,10 +51,11 @@ public:
   {}
 
   template <typename T> bool operator()(const T* const x, const T* const y, const T* const theta, T* residual) const {
-    Eigen::Matrix<T, 3, 1> translation(x[0], y[0], T(0.));
-    Eigen::AngleAxis<T> rotation(theta[0], Eigen::Matrix<T,3,1>::UnitZ());
-    Eigen::Matrix<T, 4, 4> transform;
-    transform << rotation.toRotationMatrix(), translation, T(0.), T(0.), T(0.), T(1.);
+    Eigen::Matrix<T, 2, 1> translation(x[0], y[0]);
+    Eigen::Rotation2D<T> rotation(theta[0]);
+    Eigen::Matrix<T, 4, 4> transform = Eigen::Matrix<T, 4, 4>::Identity();
+    transform.template block<2,2>(0,0) = rotation.toRotationMatrix();
+    transform.template block<2,1>(0,3) = translation;
 //    std::cout << ceres::JetOps<T>::GetScalar(*x) << " " << ceres::JetOps<T>::GetScalar(*y) << " " << ceres::JetOps<T>::GetScalar(*theta) << ": " << std::endl;
 //    Eigen::Matrix<double,4,4> transformd;
 //    transformd << ceres::JetOps<T>::GetScalar(transform(0,0)), ceres::JetOps<T>::GetScalar(transform(0,1)), ceres::JetOps<T>::GetScalar(transform(0,2)), ceres::JetOps<T>::GetScalar(transform(0,3)),
@@ -93,13 +94,14 @@ public:
   {}
 
   template <typename T> bool operator()(const T* const x, const T* const y, const T* const theta, T* residual) const {
-    Eigen::Matrix<T, 3, 1> translation(x[0], y[0], T(0.));
-    Eigen::AngleAxis<T> rotation(theta[0], Eigen::Matrix<T,3,1>::UnitZ());
-    Eigen::Matrix<T, 4, 4> transform;
-    transform << rotation.toRotationMatrix(), translation, T(0.), T(0.), T(0.), T(1.);
+    Eigen::Matrix<T, 2, 1> translation(x[0], y[0]);
+    Eigen::Rotation2D<T> rotation(theta[0]);
+    Eigen::Matrix<T, 4, 4> transform = Eigen::Matrix<T, 4, 4>::Identity();
+    transform.template block<2,2>(0,0) = rotation.toRotationMatrix();
+    transform.template block<2,1>(0,3) = translation;
 
-    float_t norm = endpoint_.norm();
-    float_t voxel_diagonal_length = map_.getResolution(level_).norm();
+    float_t norm = endpoint_.template head<2>().norm();
+    float_t voxel_diagonal_length = map_.getResolution(level_).template head<2>().norm();
 
     for (int i = 0; i < steps_; ++i) {
       float_t free_voxel_distance = norm - ((i + 1) * voxel_diagonal_length);
@@ -111,9 +113,9 @@ public:
         Eigen::Matrix<T, 4, 1> world = transform * point;
         T probability;
         if (map_.getValue(probability, world, level_))
-          residual[0] = probability;
+          residual[i] = probability;
         else
-          residual[0] = T(0.);
+          residual[i] = T(0.);
       }
     }
     return true;

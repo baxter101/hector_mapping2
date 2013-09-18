@@ -70,7 +70,7 @@ public:
   virtual bool match(const OccupancyGridMapBase& map, const Scan& scan, MatchType type = MATCH_2D_FIXED) = 0;
 
   // test match
-  virtual double evaluate(const OccupancyGridMapBase& map, const Scan& scan, const tf::Transform& pose, MatchType type = MATCH_2D_FIXED) const = 0;
+  virtual double evaluate(const OccupancyGridMapBase& map, const Scan& scan, const tf::Transform& pose, std::string *resultString = 0, MatchType type = MATCH_2D_FIXED) const = 0;
 
   // set/get transform
   void setInitialTransform(const tf::Transform& transform) { transform_.setData(transform); transform_.stamp_ = ros::Time(); }
@@ -80,7 +80,11 @@ public:
   void getPoseDifference(const tf::Transform& transform, float_t& position_difference, float_t& orientation_difference) const;
 
   // get pose with covariance
-  void getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) const;
+  void computeCovarianceIf(bool enabled);
+  void getPose(geometry_msgs::Pose& pose) const;
+  void getPose(geometry_msgs::PoseStamped& pose) const;
+  void getPose(geometry_msgs::PoseWithCovarianceStamped& pose) const;
+  geometry_msgs::PoseStamped getPose() const;
   geometry_msgs::PoseWithCovarianceStamped getPoseWithCovariance() const;
 
 protected:
@@ -88,7 +92,11 @@ protected:
   ScanMatcherParameters params_;
 
   tf::StampedTransform transform_;
-  geometry_msgs::PoseWithCovarianceStamped::_pose_type::_covariance_type covariance_;
+
+  // do not use float_t here because of ceres
+  Eigen::Matrix<double,6,6> covariance_;
+  bool covariance_enabled_;
+  bool covariance_valid_;
 };
 
 } // namespace hector_mapping

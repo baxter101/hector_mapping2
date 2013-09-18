@@ -81,6 +81,7 @@ Scan& Scan::operator=(const sensor_msgs::LaserScanConstPtr& scan)
 
   if (tf_) {
     try {
+      tf_->waitForTransform(target_frame_, scan->header.frame_id, scan->header.stamp + ros::Duration(scan->scan_time / 2.0), ros::Duration(1.0));
       laser_projection_->transformLaserScanToPointCloud(target_frame_, *scan, cloud, *tf_, scan_params_.max_distance(), scan_params_.channel_options());
     } catch(tf::TransformException& e) {
       ROS_WARN("%s", e.what());
@@ -95,23 +96,23 @@ Scan& Scan::operator=(const sensor_msgs::LaserScanConstPtr& scan)
 }
 
 namespace internal {
-  template <typename T> struct GetPoint {
+  template <typename T> struct GetPointCloudField_ {
     typedef T result_type;
     T operator()(const uint8_t *data, const sensor_msgs::PointField& field) {
       return *reinterpret_cast<const T *>(data + field.offset);
     }
   };
 
-  typedef boost::function<float_t(const uint8_t *data)> GetPointFunc;
-  GetPointFunc getPointFunc(const sensor_msgs::PointField& field) {
+  typedef boost::function<float_t(const uint8_t *data)> GetPointCloudField;
+  GetPointCloudField getPointCloudField(const sensor_msgs::PointField& field) {
     switch(field.datatype) {
       case sensor_msgs::PointField::FLOAT32:
-        return boost::bind(GetPoint<float>(), _1, field);
+        return boost::bind(GetPointCloudField_<float>(), _1, field);
       case sensor_msgs::PointField::FLOAT64:
-        return boost::bind(GetPoint<double>(), _1, field);
+        return boost::bind(GetPointCloudField_<double>(), _1, field);
       default:
         ROS_ERROR("Illegal field type %u for point cloud field %s.", field.datatype, field.name.c_str());
-        return GetPointFunc();
+        return GetPointCloudField();
     }
   }
 }
@@ -145,9 +146,9 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
     clear();
     return *this;
   }
-  internal::GetPointFunc x = internal::getPointFunc(*fields["x"]);
-  internal::GetPointFunc y = internal::getPointFunc(*fields["y"]);
-  internal::GetPointFunc z = internal::getPointFunc(*fields["z"]);
+  internal::GetPointCloudField x = internal::getPointCloudField(*fields["x"]);
+  internal::GetPointCloudField y = internal::getPointCloudField(*fields["y"]);
+  internal::GetPointCloudField z = internal::getPointCloudField(*fields["z"]);
 
   // resize scan
   clear();
@@ -160,8 +161,8 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
     const uint8_t *data = &(*it);
     Point point(x(data), y(data), z(data));
     double distance = point.norm();
-    if (distance >= scan_params_.max_distance()) continue;
-    if (distance <  scan_params_.min_distance()) continue;
+    if (scan_params_.max_distance() >  0 && distance >= scan_params_.max_distance()) continue;
+    if (scan_params_.min_distance() >= 0 && distance <  scan_params_.min_distance()) continue;
     if (point.z() < scan_params_.min_z()) continue;
     if (point.z() > scan_params_.max_z()) continue;
     points_.push_back(point);

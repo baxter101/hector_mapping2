@@ -38,16 +38,16 @@ namespace hector_mapping {
 namespace structure {
 
 // The BinaryTreeNode class.
-template <typename T, std::size_t BinaryTreeNumberOfChildren>
+template <typename T, std::size_t N>
 struct BinaryTreeNode
 {
 public:
-  typedef BinaryTreeNode<T,BinaryTreeNumberOfChildren> ThisType;
+  typedef BinaryTreeNode<T,N> ThisType;
   typedef T NestedType;
 
   typedef ThisType * Ptr;
   typedef ThisType const * ConstPtr;
-  typedef boost::array<Ptr,BinaryTreeNumberOfChildren> Children;
+  typedef boost::array<Ptr,N> Children;
   typedef typename Children::size_type size_type;
 
   BinaryTreeNode() : data_(), children_(0) {}
@@ -60,12 +60,15 @@ public:
     }
   }
 
-  void expand(const size_type i) {
+  Ptr expand(const size_type i) {
     if (!children_) {
       children_ = new Children;
       children_->assign(0);
     }
-    (*children_)[i] = new ThisType();
+    if (!(*children_)[i]) {
+      (*children_)[i] = new ThisType();
+    }
+    return (*children_)[i];
   }
 
   void prune(const size_type i) {
@@ -82,7 +85,7 @@ public:
 
   bool hasChildren() const { return children_; }
 
-  Ptr get(const size_type i, bool _expand = true) { if (_expand) expand(i); return children_ ? (*children_)[i] : 0; }
+  Ptr get(const size_type i, bool _expand = true) { if (_expand) return expand(i); else return children_ ? (*children_)[i] : 0; }
   ConstPtr get(const size_type i) const { return children_ ? (*children_)[i] : 0; }
 
   T* data() { return &data_; }
@@ -113,9 +116,8 @@ public:
     : StructureBase(params)
     , root_(0)
   {
-//    params("max_depth", max_depth_).default_value(16);
-    params("max_depth", max_depth_).default_value(10);
-    params("map_size", size_);
+//    params("max_depth", max_depth_ = 16);
+    params("max_depth", max_depth_ = 10);
 
     Size size;
     Axes::setBinaryTreeSize(size, 1u << max_depth_);
@@ -137,42 +139,42 @@ public:
     return false;
   }
 
-  virtual NodePtr getNode(const GridIndex& original_key, int depth = -1, bool _expand = true) {
+  virtual NodePtr getNode(GridIndex key, int depth = -1, bool _expand = true) const {
     if (depth < 0) depth = max_depth_;
 
     // initialize node with root node
     NodePtr node = root_;
     NodePtr found = node;
-    int current_depth = 0;
 
-    // invert bit at max_depth_-1 as the tree is centered around the origin
-    GridIndex key = original_key;
-    key[0] ^= (1u << (max_depth_-1));
-    key[1] ^= (1u << (max_depth_-1));
-    key[2] ^= (1u << (max_depth_-1));
+    // add half of the size to shift the indices to the positive half-plane
+    key[0] += (1u << (max_depth_-1));
+    key[1] += (1u << (max_depth_-1));
+    key[2] += (1u << (max_depth_-1));
 
     // walk down the tree...
-    for( ; current_depth < depth; ++current_depth) {
+    for(int d = 0; d < depth; ++d) {
       if (!node) break;
-      node = node->get(Axes::getBinaryTreeIndex(key, max_depth_ - current_depth - 1), _expand);
+      const typename Node::size_type index = Axes::getBinaryTreeIndex(key, max_depth_ - d - 1);
+      node = node->get(index, _expand);
       if (node) found = node;
     }
 
     return found;
   }
 
-  virtual NodeConstPtr getNode(const GridIndex& key, int depth = -1) const {
-    return const_cast<NodeConstPtr>(const_cast<ThisType *>(this)->getNode(key, depth, false));
-  }
-
   T *get(const GridIndex& key, int level = 0) {
-    NodePtr node = (level < 0 ? getNode(key, level, level != level::SEARCH) : getNode(key, max_depth_ - level));
+    bool expand = (level != level::SEARCH);
+    int depth = max_depth_ - level;
+    if (level < 0) depth = level;
+    NodePtr node = getNode(key, depth, expand);
     if (!node) return 0;
     return node->data();
   }
 
   const T *get(const GridIndex& key, int level = 0) const {
-    NodeConstPtr node = (level < 0 ? getNode(key, level) : getNode(key, max_depth_ - level));
+    int depth = max_depth_ - level;
+    if (level < 0) depth = level;
+    NodeConstPtr node = getNode(key, depth, false);
     if (!node) return 0;
     return node->data();
   }

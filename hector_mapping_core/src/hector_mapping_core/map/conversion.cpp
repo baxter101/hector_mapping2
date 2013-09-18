@@ -32,7 +32,28 @@
 namespace hector_mapping
 {
 
-void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z) {
+bool getMapMetaData(const GridMapBase& map, nav_msgs::MapMetaData& meta, float_t z)
+{
+  if (map.getResolution().x() != map.getResolution().y()) {
+    ROS_ERROR("GridMap cannot be converted to an OccupancyGrid message as x and y resolution differs!");
+    return false;
+  }
+  meta.resolution = map.getResolution().x();
+  meta.width = map.getSize().x();
+  meta.height = map.getSize().y();
+
+  Point min_point, max_point;
+  map.getExtends(min_point, max_point);
+  meta.origin.position.x = min_point.x();
+  meta.origin.position.y = min_point.y();
+  meta.origin.position.z = z;
+  meta.origin.orientation.w = 1.0;
+  meta.origin.orientation.x = meta.origin.orientation.y = meta.origin.orientation.z = 0;
+
+  return true;
+}
+
+bool toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z) {
 
   // acquire a shared lock
   MapBase::SharedLock lock(map.getLock());
@@ -41,22 +62,7 @@ void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::Occupancy
   message.header = map.getHeader();
 
   // set meta data
-  if (map.getResolution().x() != map.getResolution().y()) {
-    ROS_ERROR("GridMap cannot be converted to an OccupancyGrid message as x and y resolution differs!");
-    message = nav_msgs::OccupancyGrid();
-    return;
-  }
-  message.info.resolution = map.getResolution().x();
-  message.info.width = map.getSize().x();
-  message.info.height = map.getSize().y();
-
-  Point min_point, max_point;
-  map.getExtends(min_point, max_point);
-  message.info.origin.position.x = min_point.x();
-  message.info.origin.position.y = min_point.y();
-  message.info.origin.position.z = min_point.z();
-  message.info.origin.orientation.w = 1.0;
-  message.info.origin.orientation.x = message.info.origin.orientation.y = message.info.origin.orientation.z = 0;
+  if (!getMapMetaData(map, message.info, z)) return false;
 
   // write map
   message.data.resize(message.info.width * message.info.height);
@@ -72,6 +78,8 @@ void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::Occupancy
       else *data = -1;
     }
   }
+
+  return true;
 }
 
 } // namespace hector_mapping

@@ -54,12 +54,15 @@ Node::~Node()
 
 void Node::reset()
 {
+  MapBase::UniqueLock lock(map_->getWriteLock());
+
   last_map_update_pose_.setIdentity();
   last_map_update_time_ = ros::Time();
 
   if (map_) map_->reset();
   if (matcher_) matcher_->reset();
 
+  lock.unlock();
   publishMap();
   publishPose();
 }
@@ -146,7 +149,7 @@ void Node::onInit()
   getPrivateNodeHandle().getParam("base_frame", p_base_frame_);
   getPrivateNodeHandle().getParam("odom_frame", p_odom_frame_);
   getPrivateNodeHandle().getParam("use_tf_scan_transformation", p_use_tf_scan_transformation_);
-  getPrivateNodeHandle().getParam("pub_map_odom_transform_", p_pub_map_odom_transform_);
+  getPrivateNodeHandle().getParam("pub_map_odom_transform", p_pub_map_odom_transform_);
   getPrivateNodeHandle().getParam("advertise_map_service", p_advertise_map_service_);
   getPrivateNodeHandle().getParam("map_update_distance_thresh", p_map_update_translational_threshold_);
   getPrivateNodeHandle().getParam("map_update_angle_thresh", p_map_update_angular_threshold_);
@@ -220,7 +223,8 @@ void Node::onInit()
   syscommand_subscriber_ = getNodeHandle().subscribe<std_msgs::String>("syscommand", 10, &Node::syscommandCallback, this);
 
   // advertise map
-  map_publisher_ = getNodeHandle().advertise<nav_msgs::OccupancyGrid>("map", 1, true);
+  map_publisher_ = getNodeHandle().advertise<nav_msgs::OccupancyGrid>("map", 1);
+  map_metadata_publisher_ = getNodeHandle().advertise<nav_msgs::MapMetaData>("map_metadata", 1, true);
   ROS_INFO("Advertised map as %s", map_publisher_.getTopic().c_str());
 
   // advertise map service
@@ -229,7 +233,8 @@ void Node::onInit()
   }
 
   // advertise pose
-  pose_publisher_ = getNodeHandle().advertise<geometry_msgs::PoseWithCovarianceStamped>("poseupdate", 1);
+  pose_with_covariance_publisher_ = getNodeHandle().advertise<geometry_msgs::PoseWithCovarianceStamped>("poseupdate", 1);
+  pose_publisher_ = getPrivateNodeHandle().advertise<geometry_msgs::PoseStamped>("pose", 1);
 
   // advertise tf
   if (p_pub_map_odom_transform_) {
@@ -263,6 +268,7 @@ void Node::scanCallback(const sensor_msgs::LaserScanConstPtr& scan)
 
   // match scan
   if (!map_->empty()) {
+    matcher_->computeCovarianceIf(pose_with_covariance_publisher_ && pose_with_covariance_publisher_.getNumSubscribers() > 0);
     matcher_->match(*map_, scan_);
     if (!matcher_->valid()) return;
   }
@@ -303,10 +309,12 @@ void Node::initialPoseCallback(const geometry_msgs::PoseWithCovarianceStampedCon
   initial_pose_tf = pose_map_transform * initial_pose_tf;
 
   // test scan matcher mode
-  if (true) {
-    matcher_->evaluate(*map_, scan_, initial_pose_tf);
-    return;
-  }
+//  if (true) {
+//    std::string result;
+//    matcher_->evaluate(*map_, scan_, initial_pose_tf, &result);
+//    ROS_INFO_STREAM(result);
+//    return;
+//  }
 
   matcher_->setInitialTransform(initial_pose_tf);
 }
@@ -335,18 +343,27 @@ void Node::publishMap()
 {
   if (!map_) return;
 
-  // map publisher is latching. Should the map always be published here?
+  // Should the map always be published here?
   if (map_publisher_ && map_publisher_.getNumSubscribers() > 0) {
-    toOccupancyGridMessage(*map_, map_message_);
+    if (!toOccupancyGridMessage(*map_, map_message_)) return;
     map_publisher_.publish(map_message_);
+
+  } else {
+    // get meta data only
+    if (!getMapMetaData(*map_, map_message_.info)) return;
   }
+
+  // always publish (and latch) meta data
+  map_metadata_publisher_.publish(map_message_.info);
 }
 
 void Node::publishPose()
 {
   if (!matcher_) return;
-  if (!pose_publisher_) return;
-  pose_publisher_.publish(matcher_->getPoseWithCovariance());
+  if (pose_with_covariance_publisher_ && pose_with_covariance_publisher_.getNumSubscribers() > 0)
+    pose_with_covariance_publisher_.publish(matcher_->getPoseWithCovariance());
+  if (pose_publisher_ && pose_publisher_.getNumSubscribers() > 0)
+    pose_publisher_.publish(matcher_->getPose());
 }
 
 void Node::publishTf()

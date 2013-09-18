@@ -33,11 +33,11 @@ namespace hector_mapping {
 
 ScanMatcherParameters::ScanMatcherParameters()
   : match_level_minimum_(0),
-    match_level_maximum_(2),
+    match_level_maximum_(0),
     occupied_space_residual_weight_(1.0),
     free_space_residual_weight_(0.0),
     motion_residual_weight_(0.0),
-    function_tolerance_(1e-6),
+    function_tolerance_(1e-3),
     gradient_tolerance_(1e-10),
     parameter_tolerance_(1e-8),
     max_num_iterations_(50),
@@ -46,6 +46,8 @@ ScanMatcherParameters::ScanMatcherParameters()
 
 
 ScanMatcher::ScanMatcher(const Parameters& _params)
+  : covariance_enabled_(false)
+  , covariance_valid_(false)
 {
   _params.add("matcher", params_);
   transform_.frame_id_ = _params.get<std::string>("map_frame");
@@ -84,23 +86,41 @@ void ScanMatcher::getPoseDifference(const tf::Transform& other, float_t& positio
   orientation_difference = getTransform().getRotation().angleShortestPath(other.getRotation());
 }
 
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) const {
-  //  pose.header = transform_.header;
-  //  pose.pose.pose.position.x = transform_.transform.translation.x;
-  //  pose.pose.pose.position.y = transform_.transform.translation.y;
-  //  pose.pose.pose.position.z = transform_.transform.translation.z;
-  //  pose.pose.pose.orientation = transform_.transform.rotation;
+void ScanMatcher::computeCovarianceIf(bool enabled) {
+  covariance_enabled_ = enabled;
+}
 
+void ScanMatcher::getPose(geometry_msgs::Pose& pose) const {
+  tf::pointTFToMsg(transform_.getOrigin(), pose.position);
+  tf::quaternionTFToMsg(transform_.getRotation(),  pose.orientation);
+}
+
+void ScanMatcher::getPose(geometry_msgs::PoseStamped& pose) const {
   pose.header.stamp = transform_.stamp_;
   pose.header.frame_id = transform_.frame_id_;
-  tf::pointTFToMsg(transform_.getOrigin(), pose.pose.pose.position);
-  tf::quaternionTFToMsg(transform_.getRotation(),  pose.pose.pose.orientation);
-  pose.pose.covariance = covariance_;
+  getPose(pose.pose);
+}
+
+void ScanMatcher::getPose(geometry_msgs::PoseWithCovarianceStamped& pose) const {
+  pose.header.stamp = transform_.stamp_;
+  pose.header.frame_id = transform_.frame_id_;
+  getPose(pose.pose.pose);
+
+  if (covariance_valid_)
+    std::copy(&(covariance_(0,0)), &(covariance_(5,5)) + 1, pose.pose.covariance.begin());
+  else
+    pose.pose.covariance.assign(0.0);
+}
+
+geometry_msgs::PoseStamped ScanMatcher::getPose() const {
+  geometry_msgs::PoseStamped pose;
+  getPose(pose);
+  return pose;
 }
 
 geometry_msgs::PoseWithCovarianceStamped ScanMatcher::getPoseWithCovariance() const {
   geometry_msgs::PoseWithCovarianceStamped pose_with_covariance;
-  getPoseWithCovariance(pose_with_covariance);
+  getPose(pose_with_covariance);
   return pose_with_covariance;
 }
 

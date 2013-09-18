@@ -44,7 +44,6 @@ class OccupancyParameters
 {
   PARAMETER(OccupancyParameters, occupancy_t, min_occupancy);
   PARAMETER(OccupancyParameters, occupancy_t, max_occupancy);
-  PARAMETER(OccupancyParameters, occupancy_t, initial_value);
   PARAMETER(OccupancyParameters, occupancy_t, step_occupied);
   PARAMETER(OccupancyParameters, occupancy_t, step_free);
   PARAMETER(OccupancyParameters, occupancy_t, threshold_occupied);
@@ -60,7 +59,7 @@ public:
   }
 
   probability_t getLogOdd(occupancy_t occupancy) const {
-    return occupancy / logodd_scale_factor_;
+    return static_cast<probability_t>(occupancy) / logodd_scale_factor_;
   }
 
   occupancy_t getOccupancy(probability_t probability) const;
@@ -82,7 +81,7 @@ class OccupancyGridCell : public GridCellBase
 public:
   typedef probability_t ValueType;
 
-  OccupancyGridCell(const OccupancyParameters &parameters = OccupancyParameters::Default());
+  OccupancyGridCell();
   ~OccupancyGridCell();
 
   occupancy_t getOccupancy() const { return occupancy_; }
@@ -103,7 +102,7 @@ public:
   void updateFree(const OccupancyParameters &parameters);
   void undoUpdateFree(const OccupancyParameters &parameters);
 
-  void reset(const OccupancyParameters &parameters);
+  void reset();
 
 private:
   occupancy_t occupancy_;

@@ -101,6 +101,11 @@ namespace hector_mapping
     enum { MAX = -1, SEARCH = -2 };
   }
 
+  // stream operator for GridIndex
+  static inline std::ostream& operator<<(std::ostream& os, const GridIndex& index) {
+    os << "[" << index[0] << "," << index[1] << "," << index[2] << "]";
+    return os;
+  }
 } // namespace hector_mapping
 
 namespace boost {

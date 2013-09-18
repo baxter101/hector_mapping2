@@ -39,7 +39,6 @@ namespace hector_mapping
 OccupancyParameters::OccupancyParameters()
   : min_occupancy_(std::numeric_limits<occupancy_t>::min())
   , max_occupancy_(std::numeric_limits<occupancy_t>::max())
-  , initial_value_(0)
   , step_occupied_(10)
   , step_free_(-2)
   , threshold_occupied_(0)
@@ -53,7 +52,7 @@ OccupancyParameters &OccupancyParameters::Default() {
 }
 
 occupancy_t OccupancyParameters::getOccupancy(probability_t probability) const {
-  probability_t logodd = getLogOdd(probability);
+  probability_t logodd = logOddFromProbability(probability);
   int occupancy = floor(logodd * logodd_scale_factor_ + .5f);
   return applyBounds(occupancy);
 }
@@ -64,9 +63,9 @@ occupancy_t OccupancyParameters::applyBounds(int occupancy) const {
   return static_cast<occupancy_t>(occupancy);
 }
 
-OccupancyGridCell::OccupancyGridCell(const OccupancyParameters &params)
+OccupancyGridCell::OccupancyGridCell()
+  : occupancy_()
 {
-  reset(params);
 }
 
 OccupancyGridCell::~OccupancyGridCell()
@@ -107,9 +106,9 @@ void OccupancyGridCell::undoUpdateFree(const OccupancyParameters &params)
   setOccupancy(occupancy_ - params.step_free(), params);
 }
 
-void OccupancyGridCell::reset(const OccupancyParameters &params)
+void OccupancyGridCell::reset()
 {
-  occupancy_ = params.initial_value();
+  occupancy_ = occupancy_t();
 }
 
 OccupancyGridMapBase::OccupancyGridMapBase(const Parameters& _params)
@@ -220,6 +219,7 @@ bool OccupancyGridMapBase::insert(const Scan &scan, const Eigen::Affine3d &trans
   if (updated_occupied.size() > 0) empty_ = false;
 
   // notify the map that there have been updates
+  header_.stamp = scan.getStamp();
   updated();
 }
 

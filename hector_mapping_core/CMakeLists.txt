@@ -73,6 +73,13 @@ catkin_package(
 ## Build ##
 ###########
 
+## Set some compiler flags
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
+# message(STATUS "CMAKE_CXX_FLAGS_RELEASE:        ${CMAKE_CXX_FLAGS_RELEASE}")
+# message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+# message(STATUS "CMAKE_CXX_FLAGS_MINSIZEREL:     ${CMAKE_CXX_FLAGS_MINSIZEREL}")
+# message(STATUS "CMAKE_CXX_FLAGS_DEBUG:          ${CMAKE_CXX_FLAGS_DEBUG}")
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(include)
