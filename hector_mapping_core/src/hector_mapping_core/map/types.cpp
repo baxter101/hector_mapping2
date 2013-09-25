@@ -44,6 +44,11 @@ namespace hector_mapping {
   template class structure::BinaryTree<OccupancyGridCell, axes::XYZ>;
   template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XYZ> >;
 
+  // OccupancyQuadTreeMap3D
+  template class structure::Array<OccupancyGridCell, axes::Z>;
+  template class structure::BinaryTree<structure::Array<OccupancyGridCell, axes::Z>, axes::XY>;
+  template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<structure::Array<OccupancyGridCell, axes::Z>, axes::XY> >;
+
   // Factory
   MapBasePtr MapFactory::operator()(const std::string& type) {
     MapBasePtr map;
@@ -53,6 +58,8 @@ namespace hector_mapping {
       map.reset(new OccupancyQuadTreeMap2D(params_));
     } else if (type == "OccupancyOcTreeMap3D") {
       map.reset(new OccupancyOcTreeMap3D(params_));
+    } else if (type == "OccupancyQuadTreeMap3D") {
+      map.reset(new OccupancyQuadTreeMap3D(params_));
     }
     return map;
   }

@@ -49,7 +49,12 @@ namespace hector_mapping {
 
   extern template class structure::BinaryTree<OccupancyGridCell, axes::XYZ>;
   extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XYZ> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> > OccupancyOcTreeMap3D;
+  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XYZ> > OccupancyOcTreeMap3D;
+
+  extern template class structure::Array<OccupancyGridCell, axes::Z>;
+  extern template class structure::BinaryTree<structure::Array<OccupancyGridCell, axes::Z>, axes::XY>;
+  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<structure::Array<OccupancyGridCell, axes::Z>, axes::XY> >;
+  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<structure::Array<OccupancyGridCell, axes::Z>, axes::XY> > OccupancyQuadTreeMap3D;
 
 } // namespace hector_mapping
 
