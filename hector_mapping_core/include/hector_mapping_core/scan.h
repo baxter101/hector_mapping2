@@ -82,7 +82,7 @@ public:
   iterator begin() const { return points_.begin(); }
   iterator end() const   { return points_.end(); }
 
-  Scan& operator=(const sensor_msgs::LaserScanConstPtr& scan);
+  Scan& operator=(const sensor_msgs::LaserScan& scan);
   Scan& operator=(const sensor_msgs::PointCloud2& points);
 
 private:

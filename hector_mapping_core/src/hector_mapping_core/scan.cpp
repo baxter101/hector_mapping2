@@ -28,6 +28,7 @@
 
 #include <hector_mapping_core/scan.h>
 #include <laser_geometry/laser_geometry.h>
+#include <tf_conversions/tf_eigen.h>
 
 #include <boost/function.hpp>
 
@@ -75,21 +76,23 @@ void Scan::clear()
   points_.clear();
 }
 
-Scan& Scan::operator=(const sensor_msgs::LaserScanConstPtr& scan)
+Scan& Scan::operator=(const sensor_msgs::LaserScan& scan)
 {
   sensor_msgs::PointCloud2 cloud;
 
   if (tf_) {
     try {
-      tf_->waitForTransform(target_frame_, scan->header.frame_id, scan->header.stamp + ros::Duration(scan->scan_time / 2.0), ros::Duration(1.0));
-      laser_projection_->transformLaserScanToPointCloud(target_frame_, *scan, cloud, *tf_, scan_params_.max_distance(), scan_params_.channel_options());
+      tf_->waitForTransform(target_frame_, scan.header.frame_id, scan.header.stamp + ros::Duration(scan.scan_time / 2.0), ros::Duration(1.0));
+      laser_projection_->transformLaserScanToPointCloud(target_frame_, scan, cloud, *tf_, scan_params_.max_distance(), scan_params_.channel_options());
+
     } catch(tf::TransformException& e) {
       ROS_WARN("%s", e.what());
       clear();
       return *this;
     }
+
   } else {
-    laser_projection_->projectLaser(*scan, cloud, scan_params_.max_distance(), scan_params_.channel_options());
+    laser_projection_->projectLaser(scan, cloud, scan_params_.max_distance(), scan_params_.channel_options());
   }
 
   return *this = cloud;
@@ -119,11 +122,33 @@ namespace internal {
 
 Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
 {
-  sensor_msgs::PointCloud2Ptr filtered_cloud;
+  // transform cloud to target_frame_
+  tf::StampedTransform transform_tf;
+  if (tf_) {
+    try {
+      tf_->waitForTransform(target_frame_, cloud.header.frame_id, cloud.header.stamp, ros::Duration(1.0));
+      tf_->lookupTransform(target_frame_, cloud.header.frame_id, cloud.header.stamp, transform_tf);
 
+    } catch(tf::TransformException& e) {
+      ROS_WARN("%s", e.what());
+      clear();
+      return *this;
+    }
+
+  } else {
+    transform_tf.setIdentity();
+    target_frame_ = cloud.header.frame_id;
+  }
+  Eigen::Affine3d transform_eigen_double;
+  tf::transformTFToEigen(transform_tf, transform_eigen_double);
+  Eigen::Transform<float_t,3,Eigen::Affine> transform_eigen(transform_eigen_double);
+
+  // initialize filtered_cloud (if scan_cloud_publisher_ is valid)
+  sensor_msgs::PointCloud2Ptr filtered_cloud;
   if (scan_cloud_publisher_) {
     filtered_cloud.reset(new sensor_msgs::PointCloud2);
-    filtered_cloud->header = cloud.header;
+    filtered_cloud->header.stamp = cloud.header.stamp;
+    filtered_cloud->header.frame_id = target_frame_;
     filtered_cloud->height = 1;
     filtered_cloud->fields = cloud.fields;
     filtered_cloud->is_bigendian = cloud.is_bigendian;
@@ -160,7 +185,10 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
       ++i, it += cloud.point_step) {
     const uint8_t *data = &(*it);
     Point point(x(data), y(data), z(data));
+    point = transform_eigen * point;
+
     double distance = point.norm();
+    if (std::isnan(distance)) continue;
     if (scan_params_.max_distance() >  0 && distance >= scan_params_.max_distance()) continue;
     if (scan_params_.min_distance() >= 0 && distance <  scan_params_.min_distance()) continue;
     if (point.z() < scan_params_.min_z()) continue;
