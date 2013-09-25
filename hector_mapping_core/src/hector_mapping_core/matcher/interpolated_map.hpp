@@ -30,28 +30,10 @@
 #define HECTOR_MAPPING_MATCHER_INTERPOLATED_MAP_H
 
 #include <hector_mapping_core/map.h>
+#include <hector_mapping_core/internal/axes.h>
 #include <hector_mapping_core/internal/jet_opts.h>
 
 namespace hector_mapping {
-
-namespace internal {
-
-  // TODO: implement for other axes types than XY
-  template <typename MapType, typename Axes, typename MatrixType>
-  bool getInterpolationMatrix(const MapType& map, const GridIndex& lower_left, int level, MatrixType& P) {
-    index_t columns = P.cols();
-    index_t rows = P.rows();
-    index_t step = 1u << level;
-    for (index_t dx = 0; dx < columns; ++dx) {
-      for (index_t dy = 0; dy < rows; ++dy) {
-        typename MapType::ValueType value = map.getValue(GridIndex(lower_left.x() + dx * step, lower_left.y() + dy * step, lower_left.z()), level);
-        if (!(value == value)) return false;
-        P(dx, dy) = (typename MatrixType::Scalar)(value);
-      }
-    }
-    return true;
-  }
-} // namespace internal
 
 template <typename MapType, typename Axes>
 class LinearInterpolatedMap {};
@@ -73,11 +55,81 @@ public:
     // upper-right center
     Point p1(p0 + resolution);
 
-    Eigen::Matrix<typename MapType::ValueType,2,2> P;
-    if (!internal::getInterpolationMatrix<MapType, axes::XY>(map_, map_.toGridIndex(p0), level, P)) return false;
+    Eigen::Matrix<typename MapType::ValueType,4,1> P;
+    if (!getInterpolationMatrix(map_, map_.toGridIndex(p0), level, P)) return false;
 
-    value = ((point.y() - T(p0.y())) * ((point.x() - T(p0.x())) * T(P(1,1)) + (T(p1.x()) - point.x()) * T(P(0,1))) +
-             (T(p1.y()) - point.y()) * ((point.x() - T(p0.x())) * T(P(1,0)) + (T(p1.x()) - point.x()) * T(P(0,0)))) / T((p1.y() - p0.y()) * (p1.x() - p0.x()));
+    value = ((point.y() - T(p0.y())) * ((point.x() - T(p0.x())) * T(P(3)) + (T(p1.x()) - point.x()) * T(P(1))) +
+             (T(p1.y()) - point.y()) * ((point.x() - T(p0.x())) * T(P(2)) + (T(p1.x()) - point.x()) * T(P(0)))) / T((p1.y() - p0.y()) * (p1.x() - p0.x()));
+    return true;
+  }
+
+private:
+  template <typename MatrixType>
+  static bool getInterpolationMatrix(const MapType& map, const GridIndex& lower_left, int level, MatrixType& P) {
+    index_t step = 1u << level;
+    for (index_t dx = 0; dx < 2; ++dx) {
+      for (index_t dy = 0; dy < 2; ++dy) {
+        typename MapType::ValueType value = map.getValue(GridIndex(lower_left.x() + dx * step, lower_left.y() + dy * step, lower_left.z()), level);
+        if (!(value == value)) return false;
+        P(dx << 1 | dy) = (typename MatrixType::Scalar)(value);
+      }
+    }
+    return true;
+  }
+
+private:
+  const MapType& map_;
+};
+
+template <typename MapType>
+class LinearInterpolatedMap<MapType, axes::XYZ> {
+public:
+  LinearInterpolatedMap(const MapType& map) : map_(map) {}
+
+  const Resolution& getResolution(int level) const { return map_.getResolution(level); }
+
+  template <typename T, typename Derived> bool getValue(T& value, const Eigen::MatrixBase<Derived> &point, int level) const {
+    Resolution resolution = getResolution(level);
+
+    // lower-left center
+    Point p0((std::floor(ceres::JetOps<T>::GetScalar(point.x()) / resolution.x() - 0.5f) + 0.5f) * resolution.x(),
+             (std::floor(ceres::JetOps<T>::GetScalar(point.y()) / resolution.y() - 0.5f) + 0.5f) * resolution.y(),
+             (std::floor(ceres::JetOps<T>::GetScalar(point.z()) / resolution.z() - 0.5f) + 0.5f) * resolution.z());
+    // upper-right center
+    Point p1(p0 + resolution);
+
+    Eigen::Matrix<typename MapType::ValueType,8,1> P;
+    if (!getInterpolationMatrix(map_, map_.toGridIndex(p0), level, P)) return false;
+
+    value = ((point.z() - T(p0.z())) *
+               ((point.y() - T(p0.y())) *
+                  ((point.x() - T(p0.x())) * T(P(7)) + (T(p1.x()) - point.x()) * T(P(5))) +
+                (T(p1.y()) - point.y()) *
+                  ((point.x() - T(p0.x())) * T(P(6)) + (T(p1.x()) - point.x()) * T(P(4)))
+               )
+           + (T(p1.z()) - point.z()) *
+               ((point.y() - T(p0.y())) *
+                  ((point.x() - T(p0.x())) * T(P(3)) + (T(p1.x()) - point.x()) * T(P(1))) +
+                (T(p1.y()) - point.y()) *
+                  ((point.x() - T(p0.x())) * T(P(2)) + (T(p1.x()) - point.x()) * T(P(0)))
+               )
+            ) / T((p1.z() - p0.z()) * (p1.y() - p0.y()) * (p1.x() - p0.x()));
+    return true;
+  }
+
+private:
+  template <typename MatrixType>
+  static bool getInterpolationMatrix(const MapType& map, const GridIndex& lower_left, int level, MatrixType& P) {
+    index_t step = 1u << level;
+    for (index_t dx = 0; dx < 2; ++dx) {
+      for (index_t dy = 0; dy < 2; ++dy) {
+        for (index_t dz = 0; dz < 2; ++dz) {
+          typename MapType::ValueType value = map.getValue(GridIndex(lower_left.x() + dx * step, lower_left.y() + dy * step, lower_left.z() + dz * step), level);
+          if (!(value == value)) return false;
+          P(dx << 2 | dy << 1 | dz) = (typename MatrixType::Scalar)(value);
+        }
+      }
+    }
     return true;
   }
 
