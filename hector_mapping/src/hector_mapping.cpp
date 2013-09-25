@@ -71,8 +71,8 @@ void Node::onInit()
 {
   // map_size parameter
   XmlRpc::XmlRpcValue p_map_size;
-  Size &map_size = parameters_.get<Size>("map_size");
   if (getPrivateNodeHandle().getParam("map_size", p_map_size)) {
+    Size &map_size = parameters_("map_size", Size(0, 0, 0));
     if (p_map_size.getType() == XmlRpc::XmlRpcValue::TypeInt) {
       map_size.x() = map_size.y() = static_cast<int>(p_map_size);
     } else if (p_map_size.getType() == XmlRpc::XmlRpcValue::TypeArray) {
@@ -88,8 +88,8 @@ void Node::onInit()
 
   // map_resolution parameter
   XmlRpc::XmlRpcValue p_map_resolution;
-  Resolution &resolution = parameters_.get<Resolution>("map_resolution");
   if (getPrivateNodeHandle().getParam("map_resolution", p_map_resolution)) {
+    Resolution &resolution = parameters_("map_resolution", Resolution(0.0, 0.0, 0.0));
     if (p_map_resolution.getType() == XmlRpc::XmlRpcValue::TypeDouble) {
       resolution.x() = resolution.y() = static_cast<double>(p_map_resolution);
     } else if (p_map_resolution.getType() == XmlRpc::XmlRpcValue::TypeArray) {
@@ -105,8 +105,8 @@ void Node::onInit()
 
   // map_offset parameter
   XmlRpc::XmlRpcValue p_map_offset;
-  Point &offset = parameters_.get<Point>("map_offset");
   if (getPrivateNodeHandle().getParam("map_offset", p_map_offset)) {
+    Point &offset = parameters_("map_offset", Point(0.0, 0.0, 0.0));
     if (p_map_offset.getType() == XmlRpc::XmlRpcValue::TypeArray) {
       if (p_map_offset.size() >= 2) {
         offset.x() = static_cast<double>(p_map_offset[0]);
@@ -128,7 +128,7 @@ void Node::onInit()
   }
 
   // get occupancy parameters
-  OccupancyParameters &occupancy_parameters = parameters_.get<OccupancyParameters>("occupancy");
+  OccupancyParameters &occupancy_parameters = parameters_("occupancy", OccupancyParameters::Default());
   double p_update_factor_free, p_update_factor_occupied;
 //  private_nh_.param("update_factor_free", p_update_factor_free_, 0.4);
 //  private_nh_.param("update_factor_occupied", p_update_factor_occupied_, 0.9);
@@ -138,7 +138,7 @@ void Node::onInit()
     occupancy_parameters.step_occupied() = occupancy_parameters.getOccupancy(p_update_factor_occupied);
 
   // get scan parameters
-  ScanParameters &scan_parameters = parameters_.get<ScanParameters>("scan");
+  ScanParameters &scan_parameters = parameters_("scan", ScanParameters());
   getPrivateNodeHandle().getParam("laser_min_dist", scan_parameters.min_distance());
   getPrivateNodeHandle().getParam("laser_max_dist", scan_parameters.max_distance());
   getPrivateNodeHandle().getParam("laser_z_min_value", scan_parameters.min_z());
@@ -212,6 +212,7 @@ void Node::onInit()
 
   // subscribe scan
   scan_subscriber_ = getNodeHandle().subscribe<sensor_msgs::LaserScan>("scan", 10, &Node::scanCallback, this);
+  cloud_subscriber_ = getNodeHandle().subscribe<sensor_msgs::PointCloud2>("point_cloud", 10, &Node::cloudCallback, this);
 
   // initial pose subscriber
   initial_pose_subscriber_ = getNodeHandle().subscribe<geometry_msgs::PoseWithCovarianceStamped>("initial_pose", 10, &Node::initialPoseCallback, this);
@@ -263,14 +264,30 @@ void Node::scanCallback(const sensor_msgs::LaserScanConstPtr& scan)
   if (!map_ || !matcher_) return;
 
   // transform scan
-  scan_ = scan;
+  scan_ = *scan;
   if (!scan_.valid()) return;
 
+  update();
+}
+
+void Node::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud)
+{
+  if (!map_ || !matcher_) return;
+
+  // transform scan
+  scan_ = *cloud;
+  if (!scan_.valid()) return;
+
+  update();
+}
+
+bool Node::update()
+{
   // match scan
   if (!map_->empty()) {
     matcher_->computeCovarianceIf(pose_with_covariance_publisher_ && pose_with_covariance_publisher_.getNumSubscribers() > 0);
     matcher_->match(*map_, scan_);
-    if (!matcher_->valid()) return;
+    if (!matcher_->valid()) return false;
   }
 
   // update map
@@ -290,6 +307,8 @@ void Node::scanCallback(const sensor_msgs::LaserScanConstPtr& scan)
 
   // publish tf
   if (p_pub_map_odom_transform_) publishTf();
+
+  return true;
 }
 
 void Node::initialPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr &initial_pose)

@@ -59,6 +59,7 @@ public:
   void reset();
 
   void scanCallback(const sensor_msgs::LaserScanConstPtr& scan);
+  void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud);
   void initialPoseCallback(const geometry_msgs::PoseWithCovarianceStampedConstPtr& initial_pose);
   void staticMapCallback(const nav_msgs::OccupancyGridConstPtr& static_map);
   void syscommandCallback(const std_msgs::StringConstPtr& syscommand);
@@ -69,6 +70,9 @@ public:
   void publishTf();
 
   void mapPublishThread(ros::Rate rate);
+
+protected:
+  bool update();
 
 protected:
   Parameters parameters_;
@@ -97,6 +101,7 @@ protected:
 
 private:
   ros::Subscriber scan_subscriber_;
+  ros::Subscriber cloud_subscriber_;
   ros::Subscriber initial_pose_subscriber_;
   ros::Subscriber static_map_subscriber_;
   ros::Subscriber syscommand_subscriber_;
