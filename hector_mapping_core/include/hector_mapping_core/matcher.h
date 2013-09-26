@@ -66,11 +66,11 @@ public:
   virtual bool valid() const;
 
   // update scan matcher
-  enum MatchType { MATCH_2D_FIXED, MATCH_2D_BASE, MATCH_3D };
-  virtual bool match(const OccupancyGridMapBase& map, const Scan& scan, MatchType type = MATCH_2D_FIXED) = 0;
+  enum MatchType { MATCH_2D, MATCH_3D };
+  virtual bool match(const OccupancyGridMapBase& map, const Scan& scan, MatchType type = MATCH_2D) = 0;
 
   // test match
-  virtual double evaluate(const OccupancyGridMapBase& map, const Scan& scan, const tf::Transform& pose, std::string *resultString = 0, MatchType type = MATCH_2D_FIXED) const = 0;
+  virtual double evaluate(const OccupancyGridMapBase& map, const Scan& scan, const tf::Transform& pose, std::string *resultString = 0, MatchType type = MATCH_2D) const = 0;
 
   // set/get transform
   void setInitialTransform(const tf::Transform& transform) { transform_.setData(transform); transform_.stamp_ = ros::Time(); }

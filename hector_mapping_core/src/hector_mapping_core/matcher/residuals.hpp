@@ -27,8 +27,8 @@
 //=================================================================================================
 
 
-#ifndef HECTOR_MAPPING_MATCHING_RESIDUALS_H
-#define HECTOR_MAPPING_MATCHING_RESIDUALS_H
+#ifndef HECTOR_MAPPING_MATCHER_RESIDUALS_H
+#define HECTOR_MAPPING_MATCHER_RESIDUALS_H
 
 #include <hector_mapping_core/types.h>
 #include <hector_mapping_core/internal/axes.h>
@@ -38,11 +38,27 @@
 
 namespace hector_mapping {
 
-template <typename MapType, typename Axes>
-class OccupiedSpaceResidual {};
+template <typename T, typename MatrixType>
+void EulerAnglesToRotationMatrix(const T &roll, const T &pitch, const T &yaw, MatrixType &R)
+{
+  T sin_roll  = sin(roll);
+  T cos_roll  = cos(roll);
+  T sin_pitch = sin(pitch);
+  T cos_pitch = cos(pitch);
+  T sin_yaw   = sin(yaw);
+  T cos_yaw   = cos(yaw);
+
+  R << cos_pitch*cos_yaw,                             cos_pitch*sin_yaw,                              -sin_pitch,
+       sin_roll*sin_pitch*cos_yaw - cos_roll*sin_yaw, sin_roll*sin_pitch*sin_yaw + cos_pitch*cos_yaw, cos_pitch*sin_roll,
+       cos_roll*sin_pitch*cos_yaw + sin_roll*sin_yaw, cos_roll*sin_pitch*sin_yaw - sin_roll*cos_yaw,  cos_pitch*cos_roll;
+}
+
+//template <typename MapType, typename Axes>
+//class OccupiedSpaceResidual {};
 
 template <typename MapType>
-class OccupiedSpaceResidual<MapType, axes::XY> {
+// class OccupiedSpaceResidual<MapType, axes::XYZ> {
+class OccupiedSpaceResidual {
 public:
   OccupiedSpaceResidual(const MapType& map, const Point& endpoint, int level)
     : map_(map)
@@ -50,41 +66,37 @@ public:
     , level_(level)
   {}
 
-  template <typename T> bool operator()(const T* const x, const T* const y, const T* const theta, T* residual) const {
-    Eigen::Matrix<T, 2, 1> translation(x[0], y[0]);
-    Eigen::Rotation2D<T> rotation(theta[0]);
-    Eigen::Matrix<T, 4, 4> transform = Eigen::Matrix<T, 4, 4>::Identity();
-    transform.template block<2,2>(0,0) = rotation.toRotationMatrix();
-    transform.template block<2,1>(0,3) = translation;
-//    std::cout << ceres::JetOps<T>::GetScalar(*x) << " " << ceres::JetOps<T>::GetScalar(*y) << " " << ceres::JetOps<T>::GetScalar(*theta) << ": " << std::endl;
-//    Eigen::Matrix<double,4,4> transformd;
-//    transformd << ceres::JetOps<T>::GetScalar(transform(0,0)), ceres::JetOps<T>::GetScalar(transform(0,1)), ceres::JetOps<T>::GetScalar(transform(0,2)), ceres::JetOps<T>::GetScalar(transform(0,3)),
-//                  ceres::JetOps<T>::GetScalar(transform(1,0)), ceres::JetOps<T>::GetScalar(transform(1,1)), ceres::JetOps<T>::GetScalar(transform(1,2)), ceres::JetOps<T>::GetScalar(transform(1,3)),
-//                  ceres::JetOps<T>::GetScalar(transform(2,0)), ceres::JetOps<T>::GetScalar(transform(2,1)), ceres::JetOps<T>::GetScalar(transform(2,2)), ceres::JetOps<T>::GetScalar(transform(2,3)),
-//                  ceres::JetOps<T>::GetScalar(transform(3,0)), ceres::JetOps<T>::GetScalar(transform(3,1)), ceres::JetOps<T>::GetScalar(transform(3,2)), ceres::JetOps<T>::GetScalar(transform(3,3));
-//    std::cout << transformd << std::endl;
-    Eigen::Matrix<T, 4, 1> endpoint(T(endpoint_.x()), T(endpoint_.y()), T(endpoint_.z()), T(1.));
-    Eigen::Matrix<T, 4, 1> world = transform * endpoint;
+  template <typename T> bool operator()(const T* const xy, const T* const z, const T* const rollpitch, const T* const yaw, T* residual) const {
+    Eigen::Matrix<T,3,1> translation(xy[0], xy[1], z[0]);
+    Eigen::Matrix<T,3,3> rotation;
+    EulerAnglesToRotationMatrix(rollpitch[0], rollpitch[1], yaw[0], rotation);
+
+    Eigen::Matrix<T,4,4> transform = Eigen::Matrix<T,4,4>::Identity();
+    transform.template block<3,3>(0,0) = rotation;
+    transform.template block<3,1>(0,3) = translation;
+
+    Eigen::Matrix<T,4,1> endpoint(T(endpoint_.x()), T(endpoint_.y()), T(endpoint_.z()), T(1.));
+    Eigen::Matrix<T,4,1> world = transform * endpoint;
     T probability;
     if (map_.getValue(probability, world, level_))
-      residual[0] = 1. - probability;
+        residual[0] = 1. - probability;
     else
-      residual[0] = T(0.);
+        residual[0] = T(0.);
     return true;
   }
 
- private:
+private:
   const MapType& map_;
   const Point& endpoint_;
   const int level_;
 };
 
-
-template <typename MapType, typename AxesType>
-class FreeSpaceResidual {};
+//template <typename MapType, typename AxesType>
+//class FreeSpaceResidual {};
 
 template <typename MapType>
-class FreeSpaceResidual<MapType, axes::XY> {
+//class FreeSpaceResidual<MapType, axes::XY> {
+class FreeSpaceResidual {
 public:
   FreeSpaceResidual(const MapType& map, const Point& endpoint, int level, int steps)
     : map_(map)
@@ -93,12 +105,14 @@ public:
     , steps_(steps)
   {}
 
-  template <typename T> bool operator()(const T* const x, const T* const y, const T* const theta, T* residual) const {
-    Eigen::Matrix<T, 2, 1> translation(x[0], y[0]);
-    Eigen::Rotation2D<T> rotation(theta[0]);
-    Eigen::Matrix<T, 4, 4> transform = Eigen::Matrix<T, 4, 4>::Identity();
-    transform.template block<2,2>(0,0) = rotation.toRotationMatrix();
-    transform.template block<2,1>(0,3) = translation;
+  template <typename T> bool operator()(const T* const xy, const T* const z, const T* const rollpitch, const T* const yaw, T* residual) const {
+    Eigen::Matrix<T,3,1> translation(xy[0], xy[1], z[0]);
+    Eigen::Matrix<T,3,3> rotation;
+    EulerAnglesToRotationMatrix(rollpitch[0], rollpitch[1], yaw[0], rotation);
+
+    Eigen::Matrix<T,4,4> transform = Eigen::Matrix<T,4,4>::Identity();
+    transform.template block<3,3>(0,0) = rotation;
+    transform.template block<3,1>(0,3) = translation;
 
     float_t norm = endpoint_.template head<2>().norm();
     float_t voxel_diagonal_length = map_.getResolution(level_).template head<2>().norm();
@@ -133,7 +147,7 @@ public:
 //  MotionResidual(double x, double y, double theta)
 //      : x_(x), y_(y), theta_(theta) {}
 
-//  template <typename T> bool operator()(const T* const x, const T* const y, const T* const theta, T* residual) const {
+//  template <typename T> bool operator()(const T* const xy, const T* const z, const T* const rollpitch, const T* const yaw, T* residual) const {
 //    Eigen::Matrix<T, 3, 1> initial_pose_estimate(
 //        (T(x_)), (T(y_)), (T(theta_)));
 //    Eigen::Matrix<T, 3, 1> current_pose_estimate(
@@ -152,4 +166,4 @@ public:
 
 }
 
-#endif // HECTOR_MAPPING_MATCHING_RESIDUALS_H
+#endif // HECTOR_MAPPING_MATCHER_RESIDUALS_H

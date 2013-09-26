@@ -51,7 +51,8 @@ public:
   virtual double evaluate(const OccupancyGridMapBase& map, const Scan& scan, const tf::Transform& pose, std::string *resultString, MatchType type) const;
 
 private:
-  template <MatchType> class Solver;
+  class Solver;
+  typedef boost::shared_ptr<Solver> SolverPtr;
   ceres::Solver::Options ceres_options_;
 };
 
