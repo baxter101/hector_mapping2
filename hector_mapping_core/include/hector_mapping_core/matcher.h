@@ -74,6 +74,7 @@ public:
 
   // set/get transform
   void setInitialTransform(const tf::Transform& transform) { transform_.setData(transform); transform_.stamp_ = ros::Time(); }
+  void setTransform(const tf::Transform& transform) { transform_.setData(transform); }
   const ros::Time& getStamp() const { return transform_.stamp_; }
   const tf::StampedTransform& getStampedTransform() const { return transform_; }
   const tf::Transform& getTransform() const { return transform_; }

@@ -54,8 +54,7 @@ private:
   ceres::Solver::Options options_;
   ceres::Solver::Summary summary_;
 
-  tf::Transform initial_pose_;
-  double xy_[2], z_[1], roll_pitch_[2], yaw_[1];
+  double xy_[2], z_[1], rollpitch_[2], yaw_[1];
 
   bool evaluated_;
   double cost_;
@@ -95,7 +94,6 @@ template <> struct Ceres::Solver::Types<ScanMatcher::MATCH_3D>
 };
 
 Ceres::Solver::Solver(const ScanMatcherParameters &params, const tf::Transform &initial_pose)
-  : initial_pose_(initial_pose_)
 {
   // set solver options from params struct
   options_.function_tolerance = params.function_tolerance();
@@ -111,20 +109,20 @@ Ceres::Solver::Solver(const ScanMatcherParameters &params, const tf::Transform &
 //    options_.line_search_direction_type = ceres::STEEPEST_DESCENT;
 
   // initialize solver variables
-  xy_[0] = initial_pose_.getOrigin().x();
-  xy_[1] = initial_pose_.getOrigin().y();
-  z_[0]  = initial_pose_.getOrigin().z();
+  xy_[0] = initial_pose.getOrigin().x();
+  xy_[1] = initial_pose.getOrigin().y();
+  z_[0]  = initial_pose.getOrigin().z();
   tfScalar roll, pitch, yaw;
-  initial_pose_.getBasis().getRPY(roll, pitch, yaw);
-  roll_pitch_[0] = roll;
-  roll_pitch_[1] = pitch;
+  initial_pose.getBasis().getRPY(roll, pitch, yaw);
+  rollpitch_[0] = roll;
+  rollpitch_[1] = pitch;
   yaw_[0]        = yaw;
 
   // create problem :-)
   problem_ = new ceres::Problem;
   problem_->AddParameterBlock(xy_, 2);
   problem_->AddParameterBlock(z_, 1);
-  problem_->AddParameterBlock(roll_pitch_, 2);
+  problem_->AddParameterBlock(rollpitch_, 2);
   problem_->AddParameterBlock(yaw_, 1);
 
   evaluated_ = false;
@@ -150,7 +148,7 @@ Ceres::SolverPtr Ceres::Solver::initialize(const OccupancyGridMapBase &_map, con
   // add parameter blocks
   if (matchtype == ScanMatcher::MATCH_2D) {
     solver->problem_->SetParameterBlockConstant(solver->z_);
-    solver->problem_->SetParameterBlockConstant(solver->roll_pitch_);
+    solver->problem_->SetParameterBlockConstant(solver->rollpitch_);
   }
 
   // add residuals
@@ -160,14 +158,14 @@ Ceres::SolverPtr Ceres::Solver::initialize(const OccupancyGridMapBase &_map, con
           new ceres::AutoDiffCostFunction<OccupiedSpaceResidual<InterpolatedMap>, 1, 2, 1, 2, 1>(
                   new OccupiedSpaceResidual<InterpolatedMap>(*map, *endpoint, level)),
           new ceres::ScaledLoss(NULL, params.occupied_space_residual_weight(), ceres::TAKE_OWNERSHIP),
-          solver->xy_, solver->z_, solver->roll_pitch_, solver->yaw_);
+          solver->xy_, solver->z_, solver->rollpitch_, solver->yaw_);
     }
     if (params.free_space_residual_weight() > 0) {
       solver->problem_->AddResidualBlock(
           new ceres::AutoDiffCostFunction<FreeSpaceResidual<InterpolatedMap>, 10, 2, 1, 2, 1>(
                   new FreeSpaceResidual<InterpolatedMap>(*map, *endpoint, level, 10 /* steps */)),
           new ceres::ScaledLoss(NULL, params.free_space_residual_weight(), ceres::TAKE_OWNERSHIP),
-            solver->xy_, solver->z_, solver->roll_pitch_, solver->yaw_);
+            solver->xy_, solver->z_, solver->rollpitch_, solver->yaw_);
     }
   }
 
@@ -176,7 +174,7 @@ Ceres::SolverPtr Ceres::Solver::initialize(const OccupancyGridMapBase &_map, con
 //          new ceres::AutoDiffCostFunction<MotionResidual, 2, 1, 2, 1>(
 //            new MotionResidual(initial_x, initial_y, initial_yaw)),
 //            new ceres::ScaledLoss(NULL, params.motion_residual_weight(), ceres::TAKE_OWNERSHIP),
-//             solver->xy_, solver->z_, solver->roll_pitch_, solver->yaw_);
+//             solver->xy_, solver->z_, solver->rollpitch_, solver->yaw_);
 //    }
 
   return solver;
@@ -195,7 +193,7 @@ bool Ceres::Solver::solve(tf::Transform &result) {
 
   // set result transform
   result.getOrigin().setValue(xy_[0], xy_[1], z_[0]);
-  result.getBasis().setRPY(roll_pitch_[0], roll_pitch_[1], yaw_[0]);
+  result.getBasis().setRPY(rollpitch_[0], rollpitch_[1], yaw_[0]);
   return true;
 }
 
@@ -277,13 +275,13 @@ bool Ceres::Solver::getCovariance(MatrixType& matrix) {
   std::vector< std::pair<const double *, const double *> > covariance_blocks(10);
   covariance_blocks[0] = std::make_pair<const double *, const double *>(xy_, xy_);
   covariance_blocks[1] = std::make_pair<const double *, const double *>(xy_, z_);
-  covariance_blocks[2] = std::make_pair<const double *, const double *>(xy_, roll_pitch_);
+  covariance_blocks[2] = std::make_pair<const double *, const double *>(xy_, rollpitch_);
   covariance_blocks[3] = std::make_pair<const double *, const double *>(xy_, yaw_);
   covariance_blocks[4] = std::make_pair<const double *, const double *>(z_, z_);
-  covariance_blocks[5] = std::make_pair<const double *, const double *>(z_, roll_pitch_);
+  covariance_blocks[5] = std::make_pair<const double *, const double *>(z_, rollpitch_);
   covariance_blocks[6] = std::make_pair<const double *, const double *>(z_, yaw_);
-  covariance_blocks[7] = std::make_pair<const double *, const double *>(roll_pitch_, roll_pitch_);
-  covariance_blocks[8] = std::make_pair<const double *, const double *>(roll_pitch_, yaw_);
+  covariance_blocks[7] = std::make_pair<const double *, const double *>(rollpitch_, rollpitch_);
+  covariance_blocks[8] = std::make_pair<const double *, const double *>(rollpitch_, yaw_);
   covariance_blocks[9] = std::make_pair<const double *, const double *>(yaw_, yaw_);
   if (!covariance.Compute(covariance_blocks, problem_)) return false;
 
@@ -296,9 +294,37 @@ bool Ceres::Solver::getCovariance(MatrixType& matrix) {
 //  covariance.GetCovarianceBlock(y_, y_, &matrix(1,1));
 //  covariance.GetCovarianceBlock(y_, theta_, &matrix(1,5));
 //  covariance.GetCovarianceBlock(theta_, theta_, &matrix(5,5));
-  matrix(1,0) = matrix(0,1);
-  matrix(5,0) = matrix(0,5);
-  matrix(5,1) = matrix(1,5);
+//  matrix(1,0) = matrix(0,1);
+//  matrix(5,0) = matrix(0,5);
+//  matrix(5,1) = matrix(1,5);
+
+  Eigen::Matrix<double,2,2> C_xy_xy;
+  Eigen::Matrix<double,2,1> C_xy_z;
+  Eigen::Matrix<double,2,2> C_xy_rollpitch;
+  Eigen::Matrix<double,2,1> C_xy_yaw;
+  Eigen::Matrix<double,1,1> C_z_z;
+  Eigen::Matrix<double,1,2> C_z_rollpitch;
+  Eigen::Matrix<double,1,1> C_z_yaw;
+  Eigen::Matrix<double,2,2> C_rollpitch_rollpitch;
+  Eigen::Matrix<double,2,1> C_rollpitch_yaw;
+  Eigen::Matrix<double,1,1> C_yaw_yaw;
+
+  covariance.GetCovarianceBlock(xy_,        xy_,        &C_xy_xy.coeffRef(0));
+  covariance.GetCovarianceBlock(xy_,        z_,         &C_xy_z.coeffRef(0));
+  covariance.GetCovarianceBlock(xy_,        rollpitch_, &C_xy_rollpitch.coeffRef(0));
+  covariance.GetCovarianceBlock(xy_,        yaw_,       &C_xy_yaw.coeffRef(0));
+  covariance.GetCovarianceBlock(z_,         z_,         &C_z_z.coeffRef(0));
+  covariance.GetCovarianceBlock(z_,         rollpitch_, &C_z_rollpitch.coeffRef(0));
+  covariance.GetCovarianceBlock(z_,         yaw_,       &C_z_yaw.coeffRef(0));
+  covariance.GetCovarianceBlock(rollpitch_, rollpitch_, &C_rollpitch_rollpitch.coeffRef(0));
+  covariance.GetCovarianceBlock(rollpitch_, yaw_,       &C_rollpitch_yaw.coeffRef(0));
+  covariance.GetCovarianceBlock(yaw_,       yaw_,       &C_yaw_yaw.coeffRef(0));
+
+  matrix << C_xy_xy,                    C_xy_z,                    C_xy_rollpitch,              C_xy_yaw,
+            C_xy_z.transpose(),         C_z_z,                     C_z_rollpitch,               C_z_yaw,
+            C_xy_rollpitch.transpose(), C_z_rollpitch.transpose(), C_rollpitch_rollpitch,       C_rollpitch_yaw,
+            C_xy_yaw.transpose(),       C_z_yaw.transpose(),       C_rollpitch_yaw.transpose(), C_yaw_yaw;
+
   return true;
 }
 

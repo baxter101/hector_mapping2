@@ -64,9 +64,9 @@ void GridMapBase::getExtends(Point &min, Point &max) const
   getExtends(min_index, max_index);
   min = toPoint(min_index) - getResolution() / 2.0;
   max = toPoint(max_index) + getResolution() / 2.0;
-  if (getSize().x() == 0) { min.x() = max.x() = 0.0; }
-  if (getSize().y() == 0) { min.y() = max.y() = 0.0; }
-  if (getSize().z() == 0) { min.z() = max.z() = 0.0; }
+  if (getSize().x() == 0) { min.x() = -std::numeric_limits<float_t>::infinity(); max.x() = std::numeric_limits<float_t>::infinity(); }
+  if (getSize().y() == 0) { min.y() = -std::numeric_limits<float_t>::infinity(); max.y() = std::numeric_limits<float_t>::infinity(); }
+  if (getSize().z() == 0) { min.z() = -std::numeric_limits<float_t>::infinity(); max.z() = std::numeric_limits<float_t>::infinity(); }
 }
 
 void GridMapBase::getExtends(GridIndex &min, GridIndex &max) const
@@ -77,9 +77,9 @@ void GridMapBase::getExtends(GridIndex &min, GridIndex &max) const
   max.x() =  (getSize().x() - 1) / 2;
   max.y() =  (getSize().y() - 1) / 2;
   max.z() =  (getSize().z() - 1) / 2;
-  if (getSize().x() == 0) { min.x() = max.x() = 0; }
-  if (getSize().y() == 0) { min.y() = max.y() = 0; }
-  if (getSize().z() == 0) { min.z() = max.z() = 0; }
+  if (getSize().x() == 0) { min.x() = -std::numeric_limits<index_t>::max(); max.x() = std::numeric_limits<index_t>::max(); }
+  if (getSize().y() == 0) { min.y() = -std::numeric_limits<index_t>::max(); max.y() = std::numeric_limits<index_t>::max(); }
+  if (getSize().z() == 0) { min.z() = -std::numeric_limits<index_t>::max(); max.z() = std::numeric_limits<index_t>::max(); }
 }
 
 bool GridMapBase::isValid(const GridIndex &index) const
@@ -108,9 +108,6 @@ bool GridMapBase::growMinExtends(const GridIndex &index)
 
   GridIndex new_min = minGridIndex(min, index);
   GridIndex new_max = maxGridIndex(max, index);
-  if (getSize().x() == 0) { new_min.x() = 0; new_max.x() = 0; }
-  if (getSize().y() == 0) { new_min.y() = 0; new_max.y() = 0; }
-  if (getSize().z() == 0) { new_min.z() = 0; new_max.z() = 0; }
   if (new_min == min && new_max == max) return true;
   return setExtends(new_min, new_max);
 }

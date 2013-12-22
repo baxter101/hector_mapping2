@@ -101,8 +101,16 @@ Scan& Scan::operator=(const sensor_msgs::LaserScan& scan)
 namespace internal {
   template <typename T> struct GetPointCloudField_ {
     typedef T result_type;
-    T operator()(const uint8_t *data, const sensor_msgs::PointField& field) {
-      return *reinterpret_cast<const T *>(data + field.offset);
+    float_t operator()(const uint8_t *data, const sensor_msgs::PointField& field) {
+      return *reinterpret_cast<const result_type *>(data + field.offset);
+    }
+  };
+
+  template <typename T> struct SetPointCloudField_ {
+    typedef T value_type;
+    typedef void result_type;
+    void operator()(uint8_t *data, float_t value, const sensor_msgs::PointField& field) {
+      *reinterpret_cast<value_type *>(data + field.offset) = value;
     }
   };
 
@@ -118,6 +126,19 @@ namespace internal {
         return GetPointCloudField();
     }
   }
+
+  typedef boost::function<void(uint8_t *data, float_t value)> SetPointCloudField;
+  SetPointCloudField setPointCloudField(const sensor_msgs::PointField& field) {
+    switch(field.datatype) {
+      case sensor_msgs::PointField::FLOAT32:
+        return boost::bind(SetPointCloudField_<float>(), _1, _2, field);
+      case sensor_msgs::PointField::FLOAT64:
+        return boost::bind(SetPointCloudField_<double>(), _1, _2, field);
+      default:
+        ROS_ERROR("Illegal field type %u for point cloud field %s.", field.datatype, field.name.c_str());
+        return SetPointCloudField();
+    }
+  }
 }
 
 Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
@@ -128,6 +149,8 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
     try {
       tf_->waitForTransform(target_frame_, cloud.header.frame_id, cloud.header.stamp, ros::Duration(1.0));
       tf_->lookupTransform(target_frame_, cloud.header.frame_id, cloud.header.stamp, transform_tf);
+//      tf_->waitForTransform(cloud.header.frame_id, target_frame_, cloud.header.stamp, ros::Duration(1.0));
+//      tf_->lookupTransform(cloud.header.frame_id, target_frame_, cloud.header.stamp, transform_tf);
 
     } catch(tf::TransformException& e) {
       ROS_WARN("%s", e.what());
@@ -147,7 +170,7 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
   sensor_msgs::PointCloud2Ptr filtered_cloud;
   if (scan_cloud_publisher_) {
     filtered_cloud.reset(new sensor_msgs::PointCloud2);
-    filtered_cloud->header.stamp = cloud.header.stamp;
+    filtered_cloud->header = cloud.header;
     filtered_cloud->header.frame_id = target_frame_;
     filtered_cloud->height = 1;
     filtered_cloud->fields = cloud.fields;
@@ -155,6 +178,7 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
     filtered_cloud->point_step = cloud.point_step;
     filtered_cloud->row_step = 0;
     filtered_cloud->is_dense = true;
+    filtered_cloud->data.reserve(cloud.data.size());
   }
 
   // save header
@@ -174,6 +198,9 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
   internal::GetPointCloudField x = internal::getPointCloudField(*fields["x"]);
   internal::GetPointCloudField y = internal::getPointCloudField(*fields["y"]);
   internal::GetPointCloudField z = internal::getPointCloudField(*fields["z"]);
+  internal::SetPointCloudField setX = internal::setPointCloudField(*fields["x"]);
+  internal::SetPointCloudField setY = internal::setPointCloudField(*fields["y"]);
+  internal::SetPointCloudField setZ = internal::setPointCloudField(*fields["z"]);
 
   // resize scan
   clear();
@@ -194,7 +221,13 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
     if (point.z() < scan_params_.min_z()) continue;
     if (point.z() > scan_params_.max_z()) continue;
     points_.push_back(point);
-    if (filtered_cloud) filtered_cloud->data.insert(filtered_cloud->data.end(), it, it + cloud.point_step);
+    if (filtered_cloud) {
+      uint8_t *filtered_data = &(*filtered_cloud->data.end());
+      filtered_cloud->data.insert(filtered_cloud->data.end(), it, it + cloud.point_step);
+      setX(filtered_data, point.x());
+      setY(filtered_data, point.y());
+      setZ(filtered_data, point.z());
+    }
   }
 
   if (filtered_cloud) {

@@ -90,6 +90,7 @@ protected:
   Scan scan_;
 
   tf::Transform last_map_update_pose_;
+  tf::StampedTransform map_odom_transform_;
   ros::Time last_map_update_time_;
 
   boost::shared_ptr<tf::TransformBroadcaster> tf_broadcaster_;

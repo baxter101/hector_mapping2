@@ -58,6 +58,7 @@ void Node::reset()
 
   last_map_update_pose_.setIdentity();
   last_map_update_time_ = ros::Time();
+  map_odom_transform_.setIdentity();
 
   if (map_) map_->reset();
   if (matcher_) matcher_->reset();
@@ -283,6 +284,18 @@ void Node::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud)
 
 bool Node::update()
 {
+  // get pose from tf
+  tf::StampedTransform odom_pose;
+  try {
+    getTransformListener().waitForTransform(p_odom_frame_, p_base_frame_, scan_.getStamp(), ros::Duration(1.0));
+    getTransformListener().lookupTransform(p_odom_frame_, p_base_frame_, scan_.getStamp(), odom_pose);
+
+    matcher_->setTransform(map_odom_transform_.inverse() * odom_pose);
+  } catch(tf::TransformException& e) {
+    ROS_ERROR("Could not get pose from tf: %s", e.what());
+    return false;
+  }
+
   // match scan
   if (!map_->empty()) {
     matcher_->computeCovarianceIf(pose_with_covariance_publisher_ && pose_with_covariance_publisher_.getNumSubscribers() > 0);
@@ -365,6 +378,7 @@ void Node::publishMap()
   // Should the map always be published here?
   if (map_publisher_ && map_publisher_.getNumSubscribers() > 0) {
     if (!toOccupancyGridMessage(*map_, map_message_)) return;
+    map_message_.header.stamp = ros::Time::now();
     map_publisher_.publish(map_message_);
 
   } else {
@@ -404,8 +418,8 @@ void Node::publishTf()
 
   // publish map -> odom transform
 //  tf::StampedTransform map_odom_transform = tf::StampedTransform(map_base_transform * odom_base_transform.inverse(), matcher_->getStamp(), p_map_frame_, p_odom_frame_);
-  tf::StampedTransform map_odom_transform = tf::StampedTransform(map_base_transform * base_odom_transform, matcher_->getStamp(), p_map_frame_, p_odom_frame_);
-  getTransformBroadcaster().sendTransform(map_odom_transform);
+  map_odom_transform_ = tf::StampedTransform(map_base_transform * base_odom_transform, matcher_->getStamp(), p_map_frame_, p_odom_frame_);
+  getTransformBroadcaster().sendTransform(map_odom_transform_);
 }
 
 tf::TransformListener &Node::getTransformListener() {

@@ -48,9 +48,12 @@ void EulerAnglesToRotationMatrix(const T &roll, const T &pitch, const T &yaw, Ma
   T sin_yaw   = sin(yaw);
   T cos_yaw   = cos(yaw);
 
-  R << cos_pitch*cos_yaw,                             cos_pitch*sin_yaw,                              -sin_pitch,
-       sin_roll*sin_pitch*cos_yaw - cos_roll*sin_yaw, sin_roll*sin_pitch*sin_yaw + cos_pitch*cos_yaw, cos_pitch*sin_roll,
-       cos_roll*sin_pitch*cos_yaw + sin_roll*sin_yaw, cos_roll*sin_pitch*sin_yaw - sin_roll*cos_yaw,  cos_pitch*cos_roll;
+//  R << cos_pitch*cos_yaw,                             cos_pitch*sin_yaw,                              -sin_pitch,
+//       sin_roll*sin_pitch*cos_yaw - cos_roll*sin_yaw, sin_roll*sin_pitch*sin_yaw + cos_pitch*cos_yaw, cos_pitch*sin_roll,
+//       cos_roll*sin_pitch*cos_yaw + sin_roll*sin_yaw, cos_roll*sin_pitch*sin_yaw - sin_roll*cos_yaw,  cos_pitch*cos_roll;
+  R << cos_pitch*cos_yaw, sin_roll*sin_pitch*cos_yaw - cos_roll*sin_yaw,  cos_roll*sin_pitch*cos_yaw + sin_roll*sin_yaw,
+       cos_pitch*sin_yaw, sin_roll*sin_pitch*sin_yaw + cos_pitch*cos_yaw, cos_roll*sin_pitch*sin_yaw - sin_roll*cos_yaw,
+       -sin_pitch,        cos_pitch*sin_roll,                             cos_pitch*cos_roll;
 }
 
 //template <typename MapType, typename Axes>
