@@ -27,72 +27,81 @@
 //=================================================================================================
 
 
-#ifndef HECTOR_MAPPING_STRUCTURE_ARRAY_H
-#define HECTOR_MAPPING_STRUCTURE_ARRAY_H
+#ifndef HECTOR_MAPPING_NODE_H
+#define HECTOR_MAPPING_NODE_H
 
-#include <hector_mapping_core/structure/structure.h>
-#include <hector_mapping_core/internal/axes.h>
-#include <vector>
+#include <hector_mapping_core/map/types.h>
+#include <hector_mapping_core/scan.h>
+#include <hector_mapping_core/matcher.h>
 
-#include <ros/console.h>
+#include <ros/ros.h>
+#include <nodelet/nodelet.h>
+
+#include <sensor_msgs/LaserScan.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <nav_msgs/OccupancyGrid.h>
+#include <std_msgs/String.h>
+
+#include <nav_msgs/GetMap.h>
+
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_listener.h>
 
 namespace hector_mapping {
 
-namespace structure {
-
-// The Array class.
-
-template <typename T, typename Axes>
-class Array : public StructureBase
+class Node : public nodelet::Nodelet
 {
 public:
-  typedef Array<T, Axes> ThisType;
-  typedef T NestedType;
+  Node();
+  virtual ~Node();
 
-  Array(const Parameters& params = Parameters())
-    : StructureBase(params)
-    , size_(Size::Zero())
-  {
-    params("map_size", size_);
-    resize(size_);
-  }
-  virtual ~Array() {}
+  void onInit();
+  void reset();
 
-  const Size &getSize() const { return size_; }
+  void scanCallback(const sensor_msgs::LaserScanConstPtr& scan);
+  void syscommandCallback(const std_msgs::StringConstPtr& syscommand);
+  bool mapServiceCallback(nav_msgs::GetMap::Request& request, nav_msgs::GetMap::Response& response);
 
-  bool setExtends(const GridIndex &min, const GridIndex &max) {
-    // todo: resize grid dynamically
-    return false;
-  }
-
-  T *get(const GridIndex& key, int) {
-    return &(array_[Axes::getArrayIndex(key, size_)]);
-  }
-
-  const T *get(const GridIndex& key, int) const {
-    return &(array_[Axes::getArrayIndex(key, size_)]);
-  }
-
-  virtual void resize(Size size) {
-    Axes::adjustSize(size);
-    std::size_t array_size = Axes::getArraySize(size);
-    if (array_.size() != array_size) {
-      array_.resize(array_size);
-      clear();
-    }
-    size_ = size;
-  }
-
-  virtual void clear() {
-    array_.assign(array_.size(), T());
-  }
+  void publishMap();
+  void publishPose();
+  void publishTf();
 
 protected:
-  Size size_;
-  std::vector<T> array_;
+  Parameters parameters_;
+  std::string p_map_frame_;
+  std::string p_base_frame_;
+  std::string p_odom_frame_;
+  bool p_use_tf_scan_transformation_;
+  bool p_pub_map_odom_transform_;
+  bool p_advertise_map_service_;
+  double p_map_update_translational_threshold_;
+  double p_map_update_angular_threshold_;
+
+  OccupancyGridMapPtr map_;
+  ScanMatcherPtr matcher_;
+  Scan scan_;
+
+  tf::Transform last_map_update_pose_;
+  ros::Time last_map_update_time_;
+
+  boost::shared_ptr<tf::TransformBroadcaster> tf_broadcaster_;
+  tf::TransformBroadcaster &getTransformBroadcaster();
+  boost::shared_ptr<tf::TransformListener> tf_listener_;
+  tf::TransformListener &getTransformListener();
+
+  nav_msgs::OccupancyGrid map_message_;
+
+private:
+  ros::Subscriber scan_subscriber_;
+  ros::Subscriber syscommand_subscriber_;
+  ros::Publisher pose_publisher_;
+
+  ros::Timer map_publish_timer_;
+  ros::Publisher map_publisher_;
+
+  ros::ServiceServer map_service_;
 };
 
-} // namespace structure
 } // namespace hector_mapping
 
-#endif // HECTOR_MAPPING_STRUCTURE_ARRAY_H
+#endif // HECTOR_MAPPING_NODE_H

@@ -27,69 +27,110 @@
 //=================================================================================================
 
 #include <hector_mapping_core/map.h>
-#include <hector_mapping_core/internal/macros.h>
-
-#include <hector_mapping_core/map/conversion.h>
-
 #include <assert.h>
-#include <ros/console.h>
 
 namespace hector_mapping
 {
 
-void GridMapBase::getExtends(Point &min, Point &max)
+MapFactory::MapFactory(const Parameters &_params) : params_(_params) {}
+
+MapBase::MapBase(const Parameters &_params)
+  : params_(_params)
 {
-  min.x() = -(getSize().x() * resolution_.x() / 2.0) + offset_.x();
-  min.y() = -(getSize().y() * resolution_.y() / 2.0) + offset_.y();
-  min.z() = -(getSize().z() * resolution_.z() / 2.0) + offset_.z();
-  max.x() =  (getSize().x() * resolution_.x() / 2.0) + offset_.x();
-  max.x() =  (getSize().y() * resolution_.y() / 2.0) + offset_.y();
-  max.x() =  (getSize().z() * resolution_.z() / 2.0) + offset_.z();
+  params()("map_offset", offset_).default_value(Point(0.0, 0.0, 0.0));
+  header_.frame_id = params().get<std::string>("map_frame");
+}
+
+GridMapBase::GridMapBase(const Parameters& _params)
+  : MapBase(_params)
+{
+  params()("map_resolution", resolution_).default_value(Resolution(0.05, 0.05, 0.05));
+}
+
+void GridMapBase::getExtends(Point &min, Point &max) const
+{
+  GridIndex min_index, max_index;
+  getExtends(min_index, max_index);
+  min = toPoint(min_index) - getResolution() / 2.0;
+  max = toPoint(max_index) + getResolution() / 2.0;
+  if (getSize().x() == 0) { min.x() = max.x() = 0.0; }
+  if (getSize().y() == 0) { min.y() = max.y() = 0.0; }
+  if (getSize().z() == 0) { min.z() = max.z() = 0.0; }
+}
+
+void GridMapBase::getExtends(GridIndex &min, GridIndex &max) const
+{
+  min.x() = -(getSize().x() / 2);
+  min.y() = -(getSize().y() / 2);
+  min.z() = -(getSize().z() / 2);
+  max.x() =  (getSize().x() - 1) / 2;
+  max.y() =  (getSize().y() - 1) / 2;
+  max.z() =  (getSize().z() - 1) / 2;
+  if (getSize().x() == 0) { min.x() = max.x() = 0; }
+  if (getSize().y() == 0) { min.y() = max.y() = 0; }
+  if (getSize().z() == 0) { min.z() = max.z() = 0; }
+}
+
+bool GridMapBase::isValid(const GridIndex &index) const
+{
+  GridIndex current_min, current_max;
+  getExtends(current_min, current_max);
+  return hector_mapping::isValid(index, current_min, current_max);
 }
 
 bool GridMapBase::setExtends(const Point &min, const Point &max)
 {
-  return false;
+  return setExtends(toGridIndex(min), toGridIndex(max));
 }
 
-bool GridMapBase::growMinExtends(const Point &point)
+bool MapBase::growMinExtends(const Point &point)
 {
   Point min, max;
   getExtends(min, max);
-  if (point.x() < min.x()) min.x() = point.x();
-  if (point.y() < min.y()) min.y() = point.y();
-  if (point.z() < min.z()) min.z() = point.z();
-  if (point.x() > max.x()) max.x() = point.x();
-  if (point.y() > max.y()) max.y() = point.y();
-  if (point.z() > max.z()) max.z() = point.z();
-  return setExtends(min, max);
+  return setExtends(minPoint(min, point),  maxPoint(max, point));
+}
+
+bool GridMapBase::growMinExtends(const GridIndex &index)
+{
+  GridIndex min, max;
+  getExtends(min, max);
+
+  GridIndex new_min = minGridIndex(min, index);
+  GridIndex new_max = maxGridIndex(max, index);
+  if (getSize().x() == 0) { new_min.x() = 0; new_max.x() = 0; }
+  if (getSize().y() == 0) { new_min.y() = 0; new_max.y() = 0; }
+  if (getSize().z() == 0) { new_min.z() = 0; new_max.z() = 0; }
+  if (new_min == min && new_max == max) return true;
+  return setExtends(new_min, new_max);
 }
 
 inline index_t GridMapBase::toGridIndexAxis(float_t coordinates, int axis) const
 {
-  return static_cast<index_t>(floor(((coordinates - offset_[axis]) / resolution_[axis]) + .5));
+//  return static_cast<index_t>(floor(((coordinates - offset_.get()[axis]) / resolution_.get()[axis]) + .5f));
+  return static_cast<index_t>(floor((coordinates - offset_.get()[axis]) / resolution_.get()[axis]));
 }
 
 inline float_t GridMapBase::toPointAxis(index_t index, int axis) const
 {
-  return (static_cast<float_t>(index) + .5) * resolution_[axis] + offset_[axis];
+//  return (static_cast<float_t>(index) * resolution_.get()[axis]) + offset_.get()[axis];
+  return ((static_cast<float_t>(index) + .5f) * resolution_.get()[axis]) + offset_.get()[axis];
 }
 
 inline GridIndex GridMapBase::toGridIndex(const Point &point) const
 {
   GridIndex index;
-  index[0] = toGridIndexAxis(point.x(), 0);
-  index[1] = toGridIndexAxis(point.y(), 1);
-  index[2] = toGridIndexAxis(point.z(), 2);
+  index.x() = toGridIndexAxis(point.x(), 0);
+  index.y() = toGridIndexAxis(point.y(), 1);
+  index.z() = toGridIndexAxis(point.z(), 2);
   return index;
 }
 
 inline Point GridMapBase::toPoint(const GridIndex &index) const
 {
   Point point;
-  point.x() = toPointAxis(index[0], 0);
-  point.y() = toPointAxis(index[1], 1);
-  point.z() = toPointAxis(index[2], 2);
+  point.x() = toPointAxis(index.x(), 0);
+  point.y() = toPointAxis(index.y(), 1);
+  point.z() = toPointAxis(index.z(), 2);
   return point;
 }
 
@@ -99,40 +140,6 @@ GridIndex GridMapBase::getNeighbourIndex(const GridIndex &key, unsigned int axis
   neighbor[axis] += step;
   assert(neighbor[axis] >= getSize()[axis] / 2 && neighbor[axis] < getSize()[axis] / 2);
   return neighbor;
-}
-
-void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z) {
-
-  // set header
-  message.header = map.getHeader();
-
-  // set meta data
-  if (map.getResolution().x() != map.getResolution().y()) {
-    ROS_ERROR("GridMap cannot be converted to an OccupancyGrid message as x and y resolution differs!");
-    message = nav_msgs::OccupancyGrid();
-    return;
-  }
-  message.info.resolution = map.getResolution().x();
-  message.info.width = map.getSize().x();
-  message.info.height = map.getSize().y();
-  message.info.origin.position.x = map.getOffset().x();
-  message.info.origin.position.y = map.getOffset().y();
-  message.info.origin.position.z = map.getOffset().z();
-  message.info.origin.orientation.w = 1.0;
-  message.info.origin.orientation.x = message.info.origin.orientation.y = message.info.origin.orientation.z = 0;
-
-  // write map
-  message.data.resize(message.info.width * message.info.height);
-  int8_t *data = message.data.data();
-  GridIndex index = { 0, 0, map.toGridIndexAxis(z, 2) };
-  for( ; index[1] < map.getSize().y(); index[1]++) {
-    for( ; index[0] < map.getSize().x(); index[0]++, data++) {
-      const OccupancyGridCell* cell = map.getOccupancy(index);
-      if (cell->isFree(map.getOccupancyParameters())) *data = 0;
-      else if (cell->isOccupied(map.getOccupancyParameters())) *data = 100;
-      else *data = -1;
-    }
-  }
 }
 
 } // namespace hector_mapping

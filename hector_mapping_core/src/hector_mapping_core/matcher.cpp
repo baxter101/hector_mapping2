@@ -27,29 +27,81 @@
 //=================================================================================================
 
 #include <hector_mapping_core/matcher.h>
+#include <hector_mapping_core/matcher/ceres.h>
 
 namespace hector_mapping {
 
-ScanMatcher::ScanMatcher()
-{
+ScanMatcherParameters::ScanMatcherParameters()
+  : match_level_minimum_(0),
+    match_level_maximum_(3),
+    occupied_space_residual_weight_(1.0),
+    free_space_residual_weight_(0.0),
+    motion_residual_weight_(0.0),
+    function_tolerance_(1e-6),
+    gradient_tolerance_(1e-10),
+    parameter_tolerance_(1e-8),
+    max_num_iterations_(50),
+    max_solver_time_in_seconds_(0.05)
+{}
 
+
+ScanMatcher::ScanMatcher(const Parameters& _params)
+{
+  _params.add("matcher", params_);
+  transform_.frame_id_ = _params.get<std::string>("map_frame");
+  transform_.child_frame_id_ = _params.get<std::string>("base_frame");
+  reset();
 }
 
 ScanMatcher::~ScanMatcher()
 {}
 
-bool ScanMatcher::match(const MapBase& map, const Scan& scan)
+ScanMatcherPtr ScanMatcher::Factory(const Parameters& params)
 {
-  return false;
+#ifdef HAVE_CERES
+  return ScanMatcherPtr(new matcher::Ceres(params));
+#else
+  return ScanMatcherPtr();
+#endif
 }
 
-void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) {
-  pose.header = transform_.header;
-  pose.pose.pose.position.x = transform_.transform.translation.x;
-  pose.pose.pose.position.y = transform_.transform.translation.y;
-  pose.pose.pose.position.z = transform_.transform.translation.z;
-  pose.pose.pose.orientation = transform_.transform.rotation;
+void ScanMatcher::reset()
+{
+  transform_.stamp_ = ros::Time();
+  transform_.setIdentity();
+//  transform_.header.stamp = ros::Time();
+//  transform_.transform = Transform();
+//  transform_.transform.rotation.w = 1.0;
+}
+
+bool ScanMatcher::valid() const
+{
+  return true;
+}
+
+void ScanMatcher::getPoseDifference(const tf::Transform& other, float_t& position_difference, float_t& orientation_difference) const {
+  position_difference = getTransform().getOrigin().distance(other.getOrigin());
+  orientation_difference = getTransform().getRotation().angleShortestPath(other.getRotation());
+}
+
+void ScanMatcher::getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) const {
+  //  pose.header = transform_.header;
+  //  pose.pose.pose.position.x = transform_.transform.translation.x;
+  //  pose.pose.pose.position.y = transform_.transform.translation.y;
+  //  pose.pose.pose.position.z = transform_.transform.translation.z;
+  //  pose.pose.pose.orientation = transform_.transform.rotation;
+
+  pose.header.stamp = transform_.stamp_;
+  pose.header.frame_id = transform_.frame_id_;
+  tf::pointTFToMsg(transform_.getOrigin(), pose.pose.pose.position);
+  tf::quaternionTFToMsg(transform_.getRotation(),  pose.pose.pose.orientation);
   pose.pose.covariance = covariance_;
+}
+
+geometry_msgs::PoseWithCovarianceStamped ScanMatcher::getPoseWithCovariance() const {
+  geometry_msgs::PoseWithCovarianceStamped pose_with_covariance;
+  getPoseWithCovariance(pose_with_covariance);
+  return pose_with_covariance;
 }
 
 } // namespace hector_mapping

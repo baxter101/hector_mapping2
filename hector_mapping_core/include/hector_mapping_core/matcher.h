@@ -31,30 +31,60 @@
 #define HECTOR_MAPPING_SCAN_MATCHER_H
 
 #include <hector_mapping_core/types.h>
+#include <hector_mapping_core/parameters.h>
+#include <hector_mapping_core/internal/macros.h>
 
+#include <tf/transform_datatypes.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 namespace hector_mapping {
 
+struct ScanMatcherParameters {
+  PARAMETER(ScanMatcherParameters, int, match_level_minimum);
+  PARAMETER(ScanMatcherParameters, int, match_level_maximum);
+  PARAMETER(ScanMatcherParameters, double, occupied_space_residual_weight);
+  PARAMETER(ScanMatcherParameters, double, free_space_residual_weight);
+  PARAMETER(ScanMatcherParameters, double, motion_residual_weight);
+  PARAMETER(ScanMatcherParameters, double, function_tolerance);
+  PARAMETER(ScanMatcherParameters, double, gradient_tolerance);
+  PARAMETER(ScanMatcherParameters, double, parameter_tolerance);
+  PARAMETER(ScanMatcherParameters, int, max_num_iterations);
+  PARAMETER(ScanMatcherParameters, double, max_solver_time_in_seconds);
+
+public:
+  ScanMatcherParameters();
+};
+
 class ScanMatcher
 {
 public:
-  ScanMatcher();
+  static ScanMatcherPtr Factory(const Parameters& params = Parameters());
   virtual ~ScanMatcher();
 
+  virtual void reset();
+  virtual bool valid() const;
+
   // update scan matcher
-  virtual bool match(const MapBase& map, const Scan& scan);
+  enum MatchOptions { MATCH_2D_FIXED, MATCH_2D_BASE, MATCH_3D };
+  virtual bool match(const OccupancyGridMapBase& map, const Scan& scan, MatchOptions options = MATCH_2D_FIXED) = 0;
 
   // set/get transform
-  virtual void setInitialTransform(const geometry_msgs::Transform& transform) { transform_.transform = transform; }
-  virtual const Transform& getTransform() { return transform_.transform; }
+  void setInitialTransform(const tf::Transform& transform) { transform_.setData(transform); transform_.stamp_ = ros::Time(); }
+  const ros::Time& getStamp() const { return transform_.stamp_; }
+  const tf::StampedTransform& getStampedTransform() const { return transform_; }
+  const tf::Transform& getTransform() const { return transform_; }
+  void getPoseDifference(const tf::Transform& transform, float_t& position_difference, float_t& orientation_difference) const;
 
   // get pose with covariance
-  virtual void getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose);
+  void getPoseWithCovariance(geometry_msgs::PoseWithCovarianceStamped& pose) const;
+  geometry_msgs::PoseWithCovarianceStamped getPoseWithCovariance() const;
 
-private:
-  TransformStamped transform_;
+protected:
+  ScanMatcher(const Parameters& params = Parameters());
+  ScanMatcherParameters params_;
+
+  tf::StampedTransform transform_;
   geometry_msgs::PoseWithCovarianceStamped::_pose_type::_covariance_type covariance_;
 };
 

@@ -26,31 +26,36 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/map.h>
-#include <hector_mapping_core/map/occupancy.h>
+#ifndef HECTOR_MAPPING_MATCHER_CERES_H
+#define HECTOR_MAPPING_MATCHER_CERES_H
 
-#include <hector_mapping_core/structure/array.h>
-#include <hector_mapping_core/structure/binary_tree.h>
+// HAVE_CERES is normally set by cmake. Just for debugging here...
+#ifndef HAVE_CERES
+  #define HAVE_CERES
+#endif // HAVE_CERES
 
-#ifndef HECTOR_MAPPING_MAP_TYPES_H
-#define HECTOR_MAPPING_MAP_TYPES_H
+#ifdef HAVE_CERES
+
+#include <hector_mapping_core/matcher.h>
+#include <ceres/ceres.h>
 
 namespace hector_mapping {
+namespace matcher {
 
-  extern template class OccupancyGridMap<OccupancyGridCell>;
+class Ceres : public ScanMatcher
+{
+public:
+  Ceres(const Parameters& params);
+  virtual ~Ceres();
+  virtual bool match(const OccupancyGridMapBase &map, const Scan &scan, MatchOptions options);
 
-  extern template class structure::Array<OccupancyGridCell, axes::XY>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::Array<OccupancyGridCell, axes::XY> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::Array<OccupancyGridCell, axes::XY> > OccupancyGridMap2D;
+private:
+  template <MatchOptions> class Solver;
+  ceres::Solver::Options ceres_options_;
+};
 
-  extern template class structure::BinaryTree<OccupancyGridCell, axes::XY>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> > OccupancyQuadTreeMap2D;
-
-  extern template class structure::BinaryTree<OccupancyGridCell, axes::XYZ>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XYZ> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> > OccupancyOcTreeMap3D;
-
+} // namespace matcher
 } // namespace hector_mapping
 
-#endif // HECTOR_MAPPING_MAP_TYPES_H
+#endif // HAVE_CERES
+#endif // HECTOR_MAPPING_MATCHER_CERES_H

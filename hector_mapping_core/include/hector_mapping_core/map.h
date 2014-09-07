@@ -31,6 +31,7 @@
 #define HECTOR_MAPPING_MAP_H
 
 #include <hector_mapping_core/types.h>
+#include <hector_mapping_core/parameters.h>
 #include <hector_mapping_core/internal/macros.h>
 #include <hector_mapping_core/structure/get_cell.h>
 #include <hector_mapping_core/structure/array.h>
@@ -43,69 +44,65 @@
 namespace hector_mapping
 {
 
+struct MapFactory
+{
+public:
+  MapFactory(const Parameters& params = Parameters());
+  template <typename MapType> boost::shared_ptr<MapType> create(const std::string& type) { return boost::dynamic_pointer_cast<MapType>((*this)(type)); }
+
+  // implemented in types.cpp
+  MapBasePtr operator()(const std::string& type);
+
+private:
+  Parameters params_;
+};
+
 class MapBase
 {
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  template <typename ParameterType> MapBase(const ParameterType& params = ParameterType())
-  {
-    offset_ = params.offset();
-  }
+  MapBase(const Parameters& params = Parameters());
   virtual ~MapBase() {}
 
-  virtual void getExtends(Point &min, Point &max) = 0;
+  virtual Parameters& params() { return params_; }
+  virtual const Parameters& params() const { return params_; }
+
+  virtual void getExtends(Point &min, Point &max) const = 0;
   virtual bool setExtends(const Point &min, const Point &max) = 0;
-  virtual bool growMinExtends(const Point &point) = 0;
+  virtual bool growMinExtends(const Point &point);
 
   const Point& getOffset() const { return offset_; }
   virtual void setOffset(const Point &offset) { offset_ = offset; }
 
-  virtual void clear() = 0;
-  virtual void insertScan(const Scan& scan, const Transform& transform) {}
+  virtual bool empty() { return false; }
+  virtual void reset() {}
 
-  const Header& getHeader() const { return header_; }
-  Header& getHeader() { return header_; }
+  const std_msgs::Header& getHeader() const { return header_; }
+  std_msgs::Header& getHeader() { return header_; }
+
+private:
+  Parameters params_;
 
 protected:
-  Point offset_;
+  Parameter<Point> offset_;
   std_msgs::Header header_;
-};
-
-class GridMapParameters : virtual public ArrayParameters
-{
-  PARAMETER(GridMapParameters, Point, offset);
-  PARAMETER(GridMapParameters, Resolution, resolution);
-
-public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  GridMapParameters()
-    : offset_(0.0, 0.0 ,0.0)
-    , resolution_(0.01, 0.01, 0.01)
-  {}
-  virtual ~GridMapParameters() {}
 };
 
 class GridMapBase : public MapBase
 {
 public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  template <typename ParameterType> GridMapBase(const ParameterType& params = ParameterType())
-    : MapBase(params)
-  {
-    resolution_ = params.resolution();
-  }
-
+  GridMapBase(const Parameters& params = Parameters());
   virtual ~GridMapBase() {}
 
   virtual const Size& getSize() const = 0;
-  virtual void getExtends(Point &min, Point &max);
-  virtual bool setExtends(const Point &min, const Point &max);
-  virtual bool growMinExtends(const Point &point);
 
-  const Resolution& getResolution() const { return resolution_; }
+  virtual void getExtends(Point &min, Point &max) const;
+  virtual void getExtends(GridIndex &min, GridIndex &max) const;
+  virtual bool setExtends(const Point &min, const Point &max);
+  virtual bool setExtends(const GridIndex &min, const GridIndex &max) = 0;
+  using MapBase::growMinExtends;
+  virtual bool growMinExtends(const GridIndex &index);
+
+  const Resolution& getResolution(int level = 0) const { return resolution_; }
   virtual void setResolution(const Resolution& resolution) { resolution_ = resolution; }
 
   virtual index_t toGridIndexAxis(float_t coordinates, int axis) const;
@@ -114,11 +111,13 @@ public:
   virtual GridIndex toGridIndex(const Point &point) const;
   virtual Point toPoint(const GridIndex &index) const;
 
+  virtual bool isValid(const GridIndex &index) const;
+
   enum { X = 0, Y = 1, Z = 2 };
   virtual GridIndex getNeighbourIndex(const GridIndex &key, unsigned int axis, int step = 1) const;
 
 protected:
-  Resolution resolution_;
+  Parameter<Resolution> resolution_;
 };
 
 template <typename _CellType, typename _BaseType = GridMapBase>
@@ -128,30 +127,19 @@ public:
   typedef _CellType CellType;
   typedef _BaseType BaseType;
 
-  struct Parameters : public GridMapParameters, public CellType::Parameters {};
-  typedef typename CellType::Parameters CellParameters;
-
-  template <typename ParameterType> GridMap(const ParameterType& params = ParameterType())
+  GridMap(const Parameters& params = Parameters())
     : _BaseType(params)
-    , cell_params_(internal::ParameterAdaptor<CellParameters>(params))
-  {
-  }
+  {}
   virtual ~GridMap() {}
 
-  virtual CellType *get(const GridIndex& key) = 0;
-  virtual const CellType *get(const GridIndex& key) const = 0;
+  virtual CellType *get(const GridIndex& key, int level = 0) = 0;
+  virtual const CellType *get(const GridIndex& key, int level = 0) const = 0;
 
   // convenience access functions
-  CellType& operator()(const GridIndex& key)             { return *get(key); }
-  const CellType& operator()(const GridIndex& key) const { return *get(key); }
-  CellType& operator()(const Point& point)               { return *get(this->toGridIndex(point)); }
-  const CellType& operator()(const Point& point) const   { return *get(this->toGridIndex(point)); }
-
-  // get cell parameter struct
-  const CellParameters& getCellParameters() const { return cell_params_; }
-
-private:
-  CellParameters cell_params_;
+  CellType& operator()(const GridIndex& key, int level = 0)             { return *get(key, level); }
+  const CellType& operator()(const GridIndex& key, int level = 0) const { return *get(key, level); }
+  CellType& operator()(const Point& point, int level = 0)               { return *get(this->toGridIndex(point), level); }
+  const CellType& operator()(const Point& point, int level = 0) const   { return *get(this->toGridIndex(point), level); }
 };
 
 template <typename GridMapType, typename Structure>
@@ -159,30 +147,28 @@ class GridMapImpl : public GridMapType, public Structure
 {
 public:
   typedef typename GridMapType::CellType CellType;
-  struct Parameters : public GridMapType::Parameters, virtual public Structure::Parameters {};
 
-  template <typename ParameterType> GridMapImpl(const ParameterType& params = ParameterType())
+  GridMapImpl(const Parameters& params = Parameters())
     : GridMapType(params)
     , Structure(params)
   {}
   virtual ~GridMapImpl() {}
 
-  virtual void clear() { Structure::clear(); }
+  using GridMapType::operator();
+
+  virtual void reset() { GridMapType::reset(); Structure::clear(); }
+
   virtual const Size &getSize() const { return Structure::getSize(); }
 
-  virtual typename Structure::NestedType *getNext(const GridIndex& key) { return Structure::get(key); }
-  virtual const typename Structure::NestedType *getNext(const GridIndex& key) const { return Structure::get(key); }
+  using GridMapBase::setExtends;
+  virtual bool setExtends(const GridIndex &min, const GridIndex &max) { return Structure::setExtends(min, max); }
 
-  virtual CellType *get(const GridIndex& key) { return GetCell<CellType,Structure>::get(*this, key); }
-  virtual const CellType *get(const GridIndex& key) const { return GetCell<CellType,Structure>::get(*this, key); }
+  virtual typename Structure::NestedType *getNested(const GridIndex& key, int level = 0) { return Structure::get(key, level); }
+  virtual const typename Structure::NestedType *getNested(const GridIndex& key, int level = 0) const { return Structure::get(key, level); }
 
-  // convenience access functions
-  CellType& operator()(const GridIndex& key)             { return *get(key); }
-  const CellType& operator()(const GridIndex& key) const { return *get(key); }
-  CellType& operator()(const Point& point)               { return *get(this->toGridIndex(point)); }
-  const CellType& operator()(const Point& point) const   { return *get(this->toGridIndex(point)); }
+  virtual CellType *get(const GridIndex& key, int level = 0) { return GetCell<CellType,Structure>::get(*this, key, level); }
+  virtual const CellType *get(const GridIndex& key, int level = 0) const { return GetCell<CellType,Structure>::get(*this, key, level); }
 };
-
 
 } // namespace hector_mapping
 

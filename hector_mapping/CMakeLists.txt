@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(hector_mapping2)
+project(hector_mapping)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS hector_mapping_core roscpp nodelet sensor_msgs nav_msgs map_msgs)
+find_package(catkin REQUIRED COMPONENTS hector_mapping_core roscpp nodelet)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -51,7 +51,7 @@ find_package(catkin REQUIRED COMPONENTS hector_mapping_core roscpp nodelet senso
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES hector_mapping
-  CATKIN_DEPENDS hector_mapping_core roscpp nodelet sensor_msgs nav_msgs map_msgs
+  CATKIN_DEPENDS hector_mapping_core roscpp nodelet
 #  DEPENDS system_lib
 )
 

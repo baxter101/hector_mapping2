@@ -31,6 +31,7 @@
 #define HECTOR_MAPPING_SCAN_H
 
 #include <hector_mapping_core/types.h>
+#include <hector_mapping_core/parameters.h>
 #include <hector_mapping_core/internal/macros.h>
 
 #include <sensor_msgs/LaserScan.h>
@@ -45,14 +46,16 @@ namespace tf { class Transformer; }
 namespace hector_mapping {
 
 class ScanParameters {
-  PARAMETER(ScanParameters, double, range_cutoff);
+  PARAMETER(ScanParameters, double, min_distance);
+  PARAMETER(ScanParameters, double, max_distance);
   PARAMETER(ScanParameters, int, channel_options);
   PARAMETER(ScanParameters, double, min_z);
   PARAMETER(ScanParameters, double, max_z);
 
 public:
   ScanParameters()
-    : range_cutoff_(-1.0)
+    : min_distance_(0.0)
+    , max_distance_(-1.0)
     , channel_options_(0)
     , min_z_(-std::numeric_limits<double>::infinity())
     , max_z_( std::numeric_limits<double>::infinity())
@@ -62,22 +65,31 @@ public:
 class Scan
 {
 public:
-  Scan(const ScanParameters& params = ScanParameters());
-  Scan(tf::Transformer& tf, const ScanParameters& params = ScanParameters());
+  typedef std::vector<Point>::const_iterator iterator;
+
+  Scan(const Parameters& params = Parameters());
   virtual ~Scan();
+
+  Scan& setTransformer(tf::Transformer& tf, const std::string &target_frame);
+
+  const std_msgs::Header &getHeader() const { return header_; }
+  const ros::Time &getStamp() const { return header_.stamp; }
 
   bool valid() const;
   void clear();
+
+  std::size_t size() const { return points_.size(); }
+  iterator begin() const { return points_.begin(); }
+  iterator end() const   { return points_.end(); }
 
   Scan& operator=(const sensor_msgs::LaserScanConstPtr& scan);
   Scan& operator=(const sensor_msgs::PointCloud2& points);
 
 private:
-  void resize(std::size_t new_size);
+  ScanParameters scan_params_;
 
-private:
-  ScanParameters params_;
   tf::Transformer *tf_;
+  std::string target_frame_;
 
   std_msgs::Header header_;
   std::vector<Point> points_;

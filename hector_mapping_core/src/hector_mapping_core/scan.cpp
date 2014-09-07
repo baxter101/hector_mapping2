@@ -33,21 +33,21 @@
 
 namespace hector_mapping {
 
-Scan::Scan(const ScanParameters& params)
-  : params_(params)
+Scan::Scan(const Parameters& _params)
+  : tf_(0)
 {
-  laser_projection_.reset(new laser_geometry::LaserProjection);
-}
-
-Scan::Scan(tf::Transformer& tf, const ScanParameters& params)
-  : params_(params)
-  , tf_(&tf)
-{
+  _params.add("scan", scan_params_);
   laser_projection_.reset(new laser_geometry::LaserProjection);
 }
 
 Scan::~Scan()
 {
+}
+
+Scan &Scan::setTransformer(tf::Transformer &tf, const std::string &target_frame)
+{
+  tf_ = &tf;
+  target_frame_ = target_frame;
 }
 
 bool Scan::valid() const
@@ -60,19 +60,21 @@ void Scan::clear()
   points_.clear();
 }
 
-void Scan::resize(std::size_t new_size)
-{
-  points_.resize(new_size);
-}
-
 Scan& Scan::operator=(const sensor_msgs::LaserScanConstPtr& scan)
 {
   sensor_msgs::PointCloud2 cloud;
 
-  if (tf_)
-    laser_projection_->transformLaserScanToPointCloud(scan->header.frame_id, *scan, cloud, *tf_, params_.range_cutoff(), params_.channel_options());
-  else
-    laser_projection_->projectLaser(*scan, cloud, params_.range_cutoff(), params_.channel_options());
+  if (tf_) {
+    try {
+      laser_projection_->transformLaserScanToPointCloud(target_frame_, *scan, cloud, *tf_, scan_params_.max_distance(), scan_params_.channel_options());
+    } catch(tf::TransformException& e) {
+      ROS_WARN("%s", e.what());
+      clear();
+      return *this;
+    }
+  } else {
+    laser_projection_->projectLaser(*scan, cloud, scan_params_.max_distance(), scan_params_.channel_options());
+  }
 
   return *this = cloud;
 }
@@ -120,14 +122,17 @@ Scan& Scan::operator=(const sensor_msgs::PointCloud2& cloud)
   internal::GetPointFunc z = internal::getPointFunc(*fields["z"]);
 
   // resize scan
-  resize(cloud.width * cloud.height);
+  clear();
+  points_.reserve(cloud.width * cloud.height);
 
   sensor_msgs::PointCloud2::_data_type::const_iterator it = cloud.data.begin();
   for(std::size_t i = 0;
-      i < points_.size() && it < cloud.data.end();
+      it < cloud.data.end();
       ++i, it += cloud.point_step) {
     const uint8_t *data = &(*it);
-    points_[i] = Point(x(data), y(data), z(data));
+    Point point(x(data), y(data), z(data));
+    if (point.norm() < scan_params_.min_distance()) continue;
+    points_.push_back(point);
   }
 
   return *this;

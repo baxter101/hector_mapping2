@@ -26,31 +26,49 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/map.h>
-#include <hector_mapping_core/map/occupancy.h>
+#include <hector_mapping_core/map/conversion.h>
+#include <ros/console.h>
 
-#include <hector_mapping_core/structure/array.h>
-#include <hector_mapping_core/structure/binary_tree.h>
+namespace hector_mapping
+{
 
-#ifndef HECTOR_MAPPING_MAP_TYPES_H
-#define HECTOR_MAPPING_MAP_TYPES_H
+void toOccupancyGridMessage(const OccupancyGridMapBase& map, nav_msgs::OccupancyGrid& message, float_t z) {
 
-namespace hector_mapping {
+  // set header
+  message.header = map.getHeader();
 
-  extern template class OccupancyGridMap<OccupancyGridCell>;
+  // set meta data
+  if (map.getResolution().x() != map.getResolution().y()) {
+    ROS_ERROR("GridMap cannot be converted to an OccupancyGrid message as x and y resolution differs!");
+    message = nav_msgs::OccupancyGrid();
+    return;
+  }
+  message.info.resolution = map.getResolution().x();
+  message.info.width = map.getSize().x();
+  message.info.height = map.getSize().y();
 
-  extern template class structure::Array<OccupancyGridCell, axes::XY>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::Array<OccupancyGridCell, axes::XY> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::Array<OccupancyGridCell, axes::XY> > OccupancyGridMap2D;
+  Point min_point, max_point;
+  map.getExtends(min_point, max_point);
+  message.info.origin.position.x = min_point.x();
+  message.info.origin.position.y = min_point.y();
+  message.info.origin.position.z = min_point.z();
+  message.info.origin.orientation.w = 1.0;
+  message.info.origin.orientation.x = message.info.origin.orientation.y = message.info.origin.orientation.z = 0;
 
-  extern template class structure::BinaryTree<OccupancyGridCell, axes::XY>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> > OccupancyQuadTreeMap2D;
-
-  extern template class structure::BinaryTree<OccupancyGridCell, axes::XYZ>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XYZ> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> > OccupancyOcTreeMap3D;
+  // write map
+  message.data.resize(message.info.width * message.info.height);
+  int8_t *data = message.data.data();
+  GridIndex min_index, max_index;
+  map.getExtends(min_index, max_index);
+  GridIndex index(0, 0, map.toGridIndexAxis(z, 2));
+  for(index[1] = min_index[1]; index[1] <= max_index[1]; index[1]++) {
+    for(index[0] = min_index[0]; index[0] <= max_index[0]; index[0]++, data++) {
+      const OccupancyGridCell* cell = map.getOccupancy(index, level::SEARCH);
+      if (cell->isFree(map.getOccupancyParameters())) *data = 0;
+      else if (cell->isOccupied(map.getOccupancyParameters())) *data = 100;
+      else *data = -1;
+    }
+  }
+}
 
 } // namespace hector_mapping
-
-#endif // HECTOR_MAPPING_MAP_TYPES_H

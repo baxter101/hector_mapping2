@@ -1,21 +1,28 @@
 <?xml version="1.0"?>
 <package>
-  <name>hector_mapping2</name>
+  <name>hector_mapping</name>
   <version>0.0.0</version>
-  <description>The hector_mapping2 package</description>
+  <description>
+    hector_mapping is a SLAM approach that can be used without odometry as well as on platforms that exhibit roll/pitch motion (of the sensor, the platform or both).
+    It leverages the high update rate of modern LIDAR systems like the Hokuyo UTM-30LX and provides 2D pose estimates at scan rate of the sensors (40Hz for the UTM-30LX).
+    While the system does not provide explicit loop closing ability, it is sufficiently accurate for many real world scenarios. The system has successfully been used on
+    Unmanned Ground Robots, Unmanned Surface Vehicles, Handheld Mapping Devices and logged data from quadrotor UAVs.
+  </description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <maintainer email="meyer@fsr.tu-darmstadt.de">Johannes Meyer</maintainer>
+
 
   <!-- One license tag required, multiple allowed, one license per tag -->
   <!-- Commonly used license strings: -->
   <!--   BSD, MIT, Boost Software License, GPLv2, GPLv3, LGPLv2.1, LGPLv3 -->
   <license>BSD</license>
 
+
   <!-- Url tags are optional, but mutiple are allowed, one per tag -->
   <!-- Optional attribute type can be: website, bugtracker, or repository -->
-  <!-- Example: -->
   <url type="website">http://ros.org/wiki/hector_slam</url>
+
 
   <!-- Author tags are optional, mutiple are allowed, one per tag -->
   <!-- Authors do not have to be maintianers, but could be -->
@@ -35,19 +42,15 @@
   <!-- Use test_depend for packages you need only for testing: -->
   <!--   <test_depend>gtest</test_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>hector_mapping_core</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>nodelet</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_depend>nav_msgs</build_depend>
-  <build_depend>map_msgs</build_depend>
-  <run_depend>hector_mapping_core</run_depend>
-  <run_depend>roscpp</run_depend>
-  <run_depend>nodelet</run_depend>
-  <run_depend>sensor_msgs</run_depend>
-  <run_depend>nav_msgs</run_depend>
-  <run_depend>map_msgs</run_depend>
 
+  <build_depend>hector_mapping_core</build_depend>
+  <run_depend>hector_mapping_core</run_depend>
+
+  <build_depend>roscpp</build_depend>
+  <run_depend>roscpp</run_depend>
+
+  <build_depend>nodelet</build_depend>
+  <run_depend>nodelet</run_depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

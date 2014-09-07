@@ -4,15 +4,25 @@ project(hector_mapping_core)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED sensor_msgs geometry_msgs nav_msgs laser_geometry)
+find_package(catkin REQUIRED sensor_msgs geometry_msgs nav_msgs laser_geometry tf tf_conversions rosconsole)
 
 ## System dependencies are found with CMake's conventions
-find_package(Boost REQUIRED COMPONENTS thread)
+## Find boost thread
+#find_package(Boost REQUIRED COMPONENTS thread)
+find_package(Boost REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 
+## Find eigen
 find_package(Eigen REQUIRED)
 include_directories(${EIGEN_INCLUDE_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
+
+## Find ceres-solver
+find_package(Ceres)
+if(CERES_LIBRARIES)
+  add_definitions(-DHAVE_CERES)
+  include_directories(${CERES_INCLUDES})
+endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -56,7 +66,7 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES hector_mapping_core
   CATKIN_DEPENDS sensor_msgs geometry_msgs nav_msgs laser_geometry
-  DEPENDS Boost Eigen
+  DEPENDS eigen
 )
 
 ###########
@@ -71,9 +81,12 @@ include_directories(${catkin_INCLUDE_DIRS})
 ## Declare a cpp library
 add_library(hector_mapping_core
   src/${PROJECT_NAME}/map.cpp
-  src/${PROJECT_NAME}/occupancy.cpp
+  src/${PROJECT_NAME}/map/occupancy.cpp
+  src/${PROJECT_NAME}/map/types.cpp
+  src/${PROJECT_NAME}/map/conversion.cpp
   src/${PROJECT_NAME}/scan.cpp
   src/${PROJECT_NAME}/matcher.cpp
+  src/${PROJECT_NAME}/matcher/ceres.cpp
 )
 
 ## Declare a cpp executable
@@ -87,6 +100,7 @@ add_library(hector_mapping_core
 target_link_libraries(hector_mapping_core
   ${catkin_LIBRARIES}
   ${Boost_LIBRARIES}
+  ${CERES_LIBRARIES}
 )
 
 #############

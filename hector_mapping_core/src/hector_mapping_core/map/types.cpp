@@ -26,31 +26,34 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/map.h>
-#include <hector_mapping_core/map/occupancy.h>
-
-#include <hector_mapping_core/structure/array.h>
-#include <hector_mapping_core/structure/binary_tree.h>
-
-#ifndef HECTOR_MAPPING_MAP_TYPES_H
-#define HECTOR_MAPPING_MAP_TYPES_H
+#include <hector_mapping_core/map/types.h>
 
 namespace hector_mapping {
 
-  extern template class OccupancyGridMap<OccupancyGridCell>;
+  template class OccupancyGridMap<OccupancyGridCell>;
 
-  extern template class structure::Array<OccupancyGridCell, axes::XY>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::Array<OccupancyGridCell, axes::XY> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::Array<OccupancyGridCell, axes::XY> > OccupancyGridMap2D;
+  // OccupancyGridMap2D
+  template class structure::Array<OccupancyGridCell, axes::XY>;
+  template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::Array<OccupancyGridCell, axes::XY> >;
 
-  extern template class structure::BinaryTree<OccupancyGridCell, axes::XY>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> > OccupancyQuadTreeMap2D;
+  // OccupancyQuadTreeMap2D
+  template class structure::BinaryTree<OccupancyGridCell, axes::XY>;
+  template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> >;
 
-  extern template class structure::BinaryTree<OccupancyGridCell, axes::XYZ>;
-  extern template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XYZ> >;
-  typedef GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XY> > OccupancyOcTreeMap3D;
+  // OccupancyOcTreeMap3D
+  template class structure::BinaryTree<OccupancyGridCell, axes::XYZ>;
+  template class GridMapImpl<OccupancyGridMap<OccupancyGridCell>, structure::BinaryTree<OccupancyGridCell, axes::XYZ> >;
 
-} // namespace hector_mapping
-
-#endif // HECTOR_MAPPING_MAP_TYPES_H
+  // Factory
+  MapBasePtr MapFactory::operator()(const std::string& type) {
+    MapBasePtr map;
+    if (type == "OccupancyGridMap2D") {
+      map.reset(new OccupancyGridMap2D(params_));
+    } else if (type == "OccupancyQuadTreeMap2D") {
+      map.reset(new OccupancyQuadTreeMap2D(params_));
+    } else if (type == "OccupancyOcTreeMap3D") {
+      map.reset(new OccupancyOcTreeMap3D(params_));
+    }
+    return map;
+  }
+}

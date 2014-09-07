@@ -27,50 +27,22 @@
 //=================================================================================================
 
 
-#ifndef HECTOR_MAPPING_NODE_H
-#define HECTOR_MAPPING_NODE_H
+#ifndef HECTOR_MAPPING_STRUCTURE_STRUCTURE_H
+#define HECTOR_MAPPING_STRUCTURE_STRUCTURE_H
 
-#include <hector_mapping_core/map/types.h>
-#include <hector_mapping_core/scan.h>
-#include <hector_mapping_core/matcher.h>
-
-#include <ros/ros.h>
-#include <nodelet/nodelet.h>
-
-#include <sensor_msgs/LaserScan.h>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
-#include <nav_msgs/OccupancyGrid.h>
-
+#include <hector_mapping_core/parameters.h>
 
 namespace hector_mapping {
+namespace structure {
 
-class Node : public nodelet::Nodelet
+class StructureBase
 {
 public:
-  Node();
-  virtual ~Node();
-
-  void onInit();
-
-  void scanCallback(const sensor_msgs::LaserScanConstPtr& scan);
-  void publishMap();
-
-protected:
-  GridMapPtr map_;
-  ScanMatcherPtr matcher_;
-  Scan scan_;
-
-  nav_msgs::OccupancyGrid map_message_;
-  geometry_msgs::PoseWithCovarianceStamped pose_message_;
-
-private:
-  ros::Subscriber scan_subscriber_;
-  ros::Publisher pose_publisher_;
-
-  ros::Timer map_publish_timer_;
-  ros::Publisher map_publisher_;
+  StructureBase(const Parameters& params = Parameters()) {}
+  virtual ~StructureBase() {}
 };
 
+}
 } // namespace hector_mapping
 
-#endif // HECTOR_MAPPING_NODE_H
+#endif // HECTOR_MAPPING_STRUCTURE_STRUCTURE_H

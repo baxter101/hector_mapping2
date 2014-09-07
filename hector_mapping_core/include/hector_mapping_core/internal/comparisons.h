@@ -26,55 +26,65 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //=================================================================================================
 
-#include <hector_mapping_core/map/occupancy.h>
+
+#ifndef HECTOR_MAPPING_INTERNAL_COMPARISONS_H
+#define HECTOR_MAPPING_INTERNAL_COMPARISONS_H
+
+#include <hector_mapping_core/types.h>
 
 namespace hector_mapping
 {
+  static inline bool operator<(const GridIndex &index, const GridIndex &min)
+  {
+    return (index[0] < min[0]) || (index[1] < min[1]) || (index[2] < min[2]);
+  }
 
-OccupancyGridCell::OccupancyGridCell(const OccupancyParameters &params)
-{
-  reset(params);
-}
+  static inline bool operator>(const GridIndex &index, const GridIndex &max)
+  {
+    return (index[0] > max[0]) || (index[1] > max[1]) || (index[2] > max[2]);
+  }
 
-OccupancyGridCell::~OccupancyGridCell()
-{}
+  static inline bool isValid(const GridIndex &index, const GridIndex &min, const GridIndex &max)
+  {
+    return !((index < min) || (index > max));
+  }
 
-void OccupancyGridCell::setValue(occupancy_t occupancy, const OccupancyParameters &params)
-{
-  value_ = occupancy;
-  if (value_ > params.max_occupancy()) value_ = params.max_occupancy();
-  if (value_ < params.min_occupancy()) value_ = params.min_occupancy();
-}
+  static inline GridIndex minGridIndex(const GridIndex &a, const GridIndex &b)
+  {
+    GridIndex min = a;
+    if (b[0] < a[0]) min[0] = b[0];
+    if (b[1] < a[1]) min[1] = b[1];
+    if (b[2] < a[2]) min[2] = b[2];
+    return min;
+  }
 
-bool OccupancyGridCell::isUnknown(const OccupancyParameters &params) const
-{
-  return !isFree(params) && !isOccupied(params);
-}
+  static inline GridIndex maxGridIndex(const GridIndex &a, const GridIndex &b)
+  {
+    GridIndex max = a;
+    if (b[0] > a[0]) max[0] = b[0];
+    if (b[1] > a[1]) max[1] = b[1];
+    if (b[2] > a[2]) max[2] = b[2];
+    return max;
+  }
 
-bool OccupancyGridCell::isFree(const OccupancyParameters &params) const
-{
-  return value_ < params.threshold_free();
-}
+  static inline Point minPoint(const Point &a, const Point &b)
+  {
+    Point min = a;
+    if (b[0] < a[0]) min[0] = b[0];
+    if (b[1] < a[1]) min[1] = b[1];
+    if (b[2] < a[2]) min[2] = b[2];
+    return min;
+  }
 
-bool OccupancyGridCell::isOccupied(const OccupancyParameters &params) const
-{
-  return value_ > params.threshold_occupied();
-}
-
-void OccupancyGridCell::updateOccupied(const OccupancyParameters &params)
-{
-  setValue(value_ + params.step_occupied(), params);
-}
-
-void OccupancyGridCell::updateFree(const OccupancyParameters &params)
-{
-  setValue(value_ + params.step_occupied(), params);
-}
-
-void OccupancyGridCell::reset(const OccupancyParameters &params)
-{
-  value_ = params.initial_value();
-}
+  static inline Point maxPoint(const Point &a, const Point &b)
+  {
+    Point max = a;
+    if (b[0] > a[0]) max[0] = b[0];
+    if (b[1] > a[1]) max[1] = b[1];
+    if (b[2] > a[2]) max[2] = b[2];
+    return max;
+  }
 
 } // namespace hector_mapping
 
+#endif // HECTOR_MAPPING_INTERNAL_COMPARISONS_H

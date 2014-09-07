@@ -33,28 +33,56 @@
 #include <boost/array.hpp>
 #include <boost/shared_ptr.hpp>
 
-#include <Eigen/Core>
-#include <geometry_msgs/TransformStamped.h>
+#include <Eigen/Geometry>
+#include <tf/transform_datatypes.h>
+
+#ifdef __GNUC__
+  #include <tr1/unordered_set>
+  #include <tr1/unordered_map>
+#else
+  #include <unordered_set>
+  #include <unordered_map>
+#endif
 
 namespace hector_mapping
 {
+  template <typename T, std::size_t N>
+  struct array : public boost::array<T,N>
+  {
+    using boost::array<T,N>::operator[];
+    array() {}
+    array(const T &x, const T &y)             { (*this)[0] = x; (*this)[1] = y; }
+    array(const T &x, const T &y, const T &z) { (*this)[0] = x; (*this)[1] = y; (*this)[2] = z; }
+    T &x()             { return (*this)[0]; }
+    const T &x() const { return (*this)[0]; }
+    T &y()             { return (*this)[1]; }
+    const T &y() const { return (*this)[1]; }
+    T &z()             { return (*this)[2]; }
+    const T &z() const { return (*this)[2]; }
+    static array<T,N> Zero() { array<T,N> zero; zero.assign(T()); return zero; }
+  };
 
   using std::size_t;
-  typedef int index_t;
+  typedef short int index_t;
+  typedef short int diff_t;
   typedef float float_t;
-  typedef boost::array<index_t,3> GridIndex;
+  typedef array<index_t,3> GridIndex;
+  typedef array<size_t,3> Size;
 
+  typedef Eigen::Matrix<float_t,2,1> Point2;
+  typedef Eigen::Matrix<float_t,3,1> Point3;
   typedef Eigen::Matrix<float_t,3,1> Point;
   typedef Eigen::Matrix<float_t,3,1> Resolution;
-  typedef Eigen::Matrix<size_t,3,1> Size;
 
+  class MapFactory;
   class MapBase;
+  typedef boost::shared_ptr<MapBase> MapBasePtr;
   class GridMapBase;
-  class GridMapParameters;
-  template <typename CellType, typename BaseType> class GridMap;
   typedef boost::shared_ptr<GridMapBase> GridMapPtr;
+  template <typename CellType, typename BaseType> class GridMap;
 
   class OccupancyGridMapBase;
+  typedef boost::shared_ptr<OccupancyGridMapBase> OccupancyGridMapPtr;
   template <typename OccupancyCellType> class OccupancyGridMap;
 
   class GridCellBase;
@@ -64,23 +92,22 @@ namespace hector_mapping
   class ScanMatcher;
   typedef boost::shared_ptr<ScanMatcher> ScanMatcherPtr;
 
-  using std_msgs::Header;
-  using geometry_msgs::Transform;
-  using geometry_msgs::TransformStamped;
+  struct GridIndexHash {
+    size_t operator()(const GridIndex& key) const{
+      return key[0] + 1337*key[1] + 345637*key[2];
+    }
+  };
 
-  namespace internal {
+  typedef std::tr1::unordered_set<GridIndex, GridIndexHash> GridIndexSet;
+  typedef std::tr1::unordered_map<GridIndex, bool, GridIndexHash> GridIndexMap;
 
-    template <typename ParameterType> struct ParameterAdaptor : public ParameterType
-    {
-      template <typename OtherParameterType> ParameterAdaptor(const OtherParameterType& params)
-      {
-        const ParameterType *other = dynamic_cast<const ParameterType *>(&params);
-        if (other) *this = *other;
-      }
-    };
-
-  } // namespace internal
+  // levels
+  namespace level {
+    enum { MAX = -1, SEARCH = -2 };
+  }
 
 } // namespace hector_mapping
+
+#include <hector_mapping_core/internal/comparisons.h>
 
 #endif // HECTOR_MAPPING_TYPES_H

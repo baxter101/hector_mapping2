@@ -38,24 +38,24 @@ namespace hector_mapping {
 template <typename CellType, typename Structure, class enabled = void>
 struct GetCell
 {
-  static CellType *get(Structure& structure, const GridIndex& index) {
-    typename Structure::NestedType *nested = structure.get(index);
+  static CellType *get(Structure& structure, const GridIndex& index, int level = 0) {
+    typename Structure::NestedType *nested = structure.get(index, level);
     if (!nested) return 0;
-    return GetCell<CellType, typename Structure::NestedType>::get(*nested, index);
+    return GetCell<CellType, typename Structure::NestedType>::get(*nested, index, level);
   }
 
-  static const CellType *get(const Structure& structure, const GridIndex& index) {
-    typename Structure::NestedType const *nested = structure.get(index);
+  static const CellType *get(const Structure& structure, const GridIndex& index, int level = 0) {
+    typename Structure::NestedType const *nested = structure.get(index, level);
     if (!nested) return 0;
-    return GetCell<CellType, typename Structure::NestedType>::get(*nested, index);
+    return GetCell<CellType, typename Structure::NestedType>::get(*nested, index, level);
   }
 };
 
 template <typename CellType, typename Structure>
 struct GetCell<CellType, Structure, typename boost::enable_if< typename boost::is_same<CellType, typename Structure::NestedType>::type >::type >
 {
-  static CellType *get(Structure& structure, const GridIndex& index)             { return structure.get(index); }
-  static const CellType *get(const Structure& structure, const GridIndex& index) { return structure.get(index); }
+  static CellType *get(Structure& structure, const GridIndex& index, int level = 0)             { return structure.get(index, level); }
+  static const CellType *get(const Structure& structure, const GridIndex& index, int level = 0) { return structure.get(index, level); }
 };
 
 } // namespace hector_mapping
