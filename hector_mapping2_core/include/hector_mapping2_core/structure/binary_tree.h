@@ -119,10 +119,7 @@ public:
 //    params("max_depth", max_depth_ = 16);
     params("max_depth", max_depth_ = 10);
 
-    Size size;
-    Axes::setBinaryTreeSize(size, 1u << max_depth_);
-    size_ = size;
-
+    Axes::setBinaryTreeSize(size_, 1u << max_depth_);
     clear();
   }
 

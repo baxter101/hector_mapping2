@@ -50,28 +50,30 @@
 
 namespace hector_mapping
 {
-  template <typename T, std::size_t N>
-  struct array : public boost::array<T,N>
-  {
-    using boost::array<T,N>::operator[];
-    array() {}
-    array(const T &x, const T &y)             { (*this)[0] = x; (*this)[1] = y; }
-    array(const T &x, const T &y, const T &z) { (*this)[0] = x; (*this)[1] = y; (*this)[2] = z; }
-    T &x()             { return (*this)[0]; }
-    const T &x() const { return (*this)[0]; }
-    T &y()             { return (*this)[1]; }
-    const T &y() const { return (*this)[1]; }
-    T &z()             { return (*this)[2]; }
-    const T &z() const { return (*this)[2]; }
-    static array<T,N> Zero() { array<T,N> zero; zero.assign(T()); return zero; }
-  };
+//  template <typename T, std::size_t N>
+//  struct array : public boost::array<T,N>
+//  {
+//    using boost::array<T,N>::operator[];
+//    array() {}
+//    array(const T &x, const T &y)             { (*this)[0] = x; (*this)[1] = y; }
+//    array(const T &x, const T &y, const T &z) { (*this)[0] = x; (*this)[1] = y; (*this)[2] = z; }
+//    T &x()             { return (*this)[0]; }
+//    const T &x() const { return (*this)[0]; }
+//    T &y()             { return (*this)[1]; }
+//    const T &y() const { return (*this)[1]; }
+//    T &z()             { return (*this)[2]; }
+//    const T &z() const { return (*this)[2]; }
+//    static array<T,N> Zero() { array<T,N> zero; zero.assign(T()); return zero; }
+//  };
 
   using std::size_t;
   typedef short int index_t;
   typedef short int diff_t;
   typedef float float_t;
-  typedef array<index_t,3> GridIndex;
-  typedef array<size_t,3> Size;
+//  typedef array<index_t,3> GridIndex;
+//  typedef array<size_t,3> Size;
+  typedef Eigen::Matrix<index_t,3,1> GridIndex;
+  typedef Eigen::Matrix<size_t,3,1> Size;
 
   typedef Eigen::Matrix<float_t,2,1> Point2;
   typedef Eigen::Matrix<float_t,3,1> Point3;
