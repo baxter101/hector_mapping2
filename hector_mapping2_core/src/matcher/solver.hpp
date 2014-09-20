@@ -264,7 +264,7 @@ bool Ceres::Solver::getInformationMatrix(MatrixType& matrix) {
 //  matrix(5,1) = I(2,1);
 //  matrix(5,5) = I(2,2);
 
-  matrix = I;
+  matrix = I / 1e4;
   return true;
 }
 
@@ -324,6 +324,7 @@ bool Ceres::Solver::getCovariance(MatrixType& matrix) {
             C_xy_z.transpose(),         C_z_z,                     C_z_rollpitch,               C_z_yaw,
             C_xy_rollpitch.transpose(), C_z_rollpitch.transpose(), C_rollpitch_rollpitch,       C_rollpitch_yaw,
             C_xy_yaw.transpose(),       C_z_yaw.transpose(),       C_rollpitch_yaw.transpose(), C_yaw_yaw;
+  matrix *= 1e4;
 
   return true;
 }
