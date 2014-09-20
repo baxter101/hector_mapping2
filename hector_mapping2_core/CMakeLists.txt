@@ -74,11 +74,11 @@ catkin_package(
 ###########
 
 ## Set some compiler flags
-# set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
-# message(STATUS "CMAKE_CXX_FLAGS_RELEASE:        ${CMAKE_CXX_FLAGS_RELEASE}")
-# message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-# message(STATUS "CMAKE_CXX_FLAGS_MINSIZEREL:     ${CMAKE_CXX_FLAGS_MINSIZEREL}")
-# message(STATUS "CMAKE_CXX_FLAGS_DEBUG:          ${CMAKE_CXX_FLAGS_DEBUG}")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g")
+message(STATUS "CMAKE_CXX_FLAGS_RELEASE:        ${CMAKE_CXX_FLAGS_RELEASE}")
+message(STATUS "CMAKE_CXX_FLAGS_RELWITHDEBINFO: ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+message(STATUS "CMAKE_CXX_FLAGS_MINSIZEREL:     ${CMAKE_CXX_FLAGS_MINSIZEREL}")
+message(STATUS "CMAKE_CXX_FLAGS_DEBUG:          ${CMAKE_CXX_FLAGS_DEBUG}")
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
@@ -88,12 +88,15 @@ include_directories(${catkin_INCLUDE_DIRS})
 ## Declare a cpp library
 add_library(hector_mapping2_core
   src/map.cpp
+  src/map/conversion.cpp
   src/map/occupancy.cpp
   src/map/types.cpp
-  src/map/conversion.cpp
   src/scan.cpp
   src/matcher.cpp
   src/matcher/ceres.cpp
+  src/matcher/interpolated_map.hpp
+  src/matcher/residuals.hpp
+  src/matcher/solver.hpp
 )
 
 ## Declare a cpp executable
