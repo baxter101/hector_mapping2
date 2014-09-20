@@ -82,9 +82,9 @@ public:
     Eigen::Matrix<T,4,1> world = transform * endpoint;
     T probability;
     if (map_.getValue(probability, world, level_))
-        residual[0] = 1. - probability;
+      residual[0] = std::min(2. - 2. * probability, T(1.0));
     else
-        residual[0] = T(0.);
+      residual[0] = T(0.);
     return true;
   }
 
