@@ -47,7 +47,8 @@ ScanMatcherParameters::ScanMatcherParameters()
 
 
 ScanMatcher::ScanMatcher(const Parameters& _params)
-  : covariance_enabled_(false)
+  : valid_(false)
+  , covariance_enabled_(false)
   , covariance_valid_(false)
 {
   _params.add("matcher", params_);
@@ -70,6 +71,7 @@ ScanMatcherPtr ScanMatcher::Factory(const Parameters& params)
 
 void ScanMatcher::reset()
 {
+  valid_ = false;
   transform_.stamp_ = ros::Time();
   transform_.setIdentity();
 //  transform_.header.stamp = ros::Time();
@@ -79,7 +81,7 @@ void ScanMatcher::reset()
 
 bool ScanMatcher::valid() const
 {
-  return true;
+  return valid_;
 }
 
 void ScanMatcher::getPoseDifference(const tf::Transform& other, float_t& position_difference, float_t& orientation_difference) const {

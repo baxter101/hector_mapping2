@@ -48,6 +48,7 @@ bool Ceres::match(const OccupancyGridMapBase &map, const Scan &scan, MatchType t
   // acquire a shared lock
   MapBase::SharedLock lock(map.getLock());
   tf::Transform result = transform_;
+  valid_ = false;
   covariance_valid_ = false;
 
   switch(type) {
@@ -75,6 +76,7 @@ bool Ceres::match(const OccupancyGridMapBase &map, const Scan &scan, MatchType t
 
   transform_.stamp_ = scan.getStamp();
   transform_.setData(result);
+  valid_ = true;
   return true;
 }
 

@@ -94,6 +94,7 @@ protected:
   ScanMatcher(const Parameters& params = Parameters());
   ScanMatcherParameters params_;
 
+  bool valid_;
   tf::StampedTransform transform_;
 
   // do not use float_t here because of ceres
