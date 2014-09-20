@@ -65,7 +65,7 @@ endif()
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES hector_mapping2_core
-  CATKIN_DEPENDS sensor_msgs geometry_msgs nav_msgs laser_geometry
+  CATKIN_DEPENDS sensor_msgs geometry_msgs nav_msgs visualization_msgs laser_geometry
   DEPENDS eigen
 )
 
@@ -97,6 +97,7 @@ add_library(hector_mapping2_core
   src/matcher/interpolated_map.hpp
   src/matcher/residuals.hpp
   src/matcher/solver.hpp
+  src/util/marker_conversion.cpp
 )
 
 ## Declare a cpp executable

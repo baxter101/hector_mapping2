@@ -109,6 +109,7 @@ private:
   ros::Subscriber syscommand_subscriber_;
   ros::Publisher pose_with_covariance_publisher_;
   ros::Publisher pose_publisher_;
+  ros::Publisher covariance_publisher_;
 
   ros::Publisher map_publisher_;
   ros::Publisher map_metadata_publisher_;

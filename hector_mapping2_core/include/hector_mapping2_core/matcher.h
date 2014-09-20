@@ -37,6 +37,7 @@
 #include <tf/transform_datatypes.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include <visualization_msgs/Marker.h>
 
 namespace hector_mapping {
 
@@ -87,6 +88,7 @@ public:
   void getPose(geometry_msgs::PoseWithCovarianceStamped& pose) const;
   geometry_msgs::PoseStamped getPose() const;
   geometry_msgs::PoseWithCovarianceStamped getPoseWithCovariance() const;
+  visualization_msgs::Marker getCovarianceMarker() const;
 
 protected:
   ScanMatcher(const Parameters& params = Parameters());

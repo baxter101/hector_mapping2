@@ -29,6 +29,8 @@
 #include <hector_mapping2/hector_mapping.h>
 #include <hector_mapping2_core/map/conversion.h>
 
+#include <visualization_msgs/Marker.h>
+
 namespace hector_mapping {
 
 Node::Node()
@@ -240,6 +242,7 @@ void Node::onInit()
   // advertise pose
   pose_with_covariance_publisher_ = getNodeHandle().advertise<geometry_msgs::PoseWithCovarianceStamped>("poseupdate", 1);
   pose_publisher_ = getPrivateNodeHandle().advertise<geometry_msgs::PoseStamped>("pose", 1);
+  covariance_publisher_ = getPrivateNodeHandle().advertise<visualization_msgs::Marker>("covariance", 1);
 
   // advertise tf
   if (p_pub_map_odom_transform_) {
@@ -402,6 +405,8 @@ void Node::publishPose()
     pose_with_covariance_publisher_.publish(matcher_->getPoseWithCovariance());
   if (pose_publisher_ && pose_publisher_.getNumSubscribers() > 0)
     pose_publisher_.publish(matcher_->getPose());
+  if (covariance_publisher_ && covariance_publisher_.getNumSubscribers() > 0)
+    covariance_publisher_.publish(matcher_->getCovarianceMarker());
 }
 
 void Node::publishTf()

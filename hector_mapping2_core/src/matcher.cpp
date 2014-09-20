@@ -28,6 +28,7 @@
 
 #include <hector_mapping2_core/matcher.h>
 #include <hector_mapping2_core/matcher/ceres.h>
+#include <hector_mapping2_core/util/marker_conversion.h>
 
 namespace hector_mapping {
 
@@ -122,6 +123,23 @@ geometry_msgs::PoseWithCovarianceStamped ScanMatcher::getPoseWithCovariance() co
   geometry_msgs::PoseWithCovarianceStamped pose_with_covariance;
   getPose(pose_with_covariance);
   return pose_with_covariance;
+}
+
+visualization_msgs::Marker ScanMatcher::getCovarianceMarker() const {
+  visualization_msgs::Marker marker;
+
+  marker.ns = "covariance";
+  marker.color.r = 0.0;
+  marker.color.g = 0.0;
+  marker.color.b = 1.0;
+  marker.color.a = 0.5;
+
+  if (covariance_valid_) {
+    covarianceToMarker(transform_, covariance_.block<3,3>(0,0), marker, /* invert = */ true);
+  } else {
+    marker.action = visualization_msgs::Marker::DELETE;
+  }
+  return marker;
 }
 
 } // namespace hector_mapping
