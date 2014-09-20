@@ -132,6 +132,19 @@ void Node::onInit()
     return;
   }
 
+  // scan matcher parameters
+  ScanMatcherParameters &matcher_parameters = parameters_("matcher", ScanMatcherParameters());
+  getPrivateNodeHandle().getParam("match_level_minimum", matcher_parameters.match_level_minimum());
+  getPrivateNodeHandle().getParam("match_level_maximum", matcher_parameters.match_level_maximum());
+  getPrivateNodeHandle().getParam("occupied_space_residual_weight", matcher_parameters.occupied_space_residual_weight());
+  getPrivateNodeHandle().getParam("free_space_residual_weight", matcher_parameters.free_space_residual_weight());
+  getPrivateNodeHandle().getParam("motion_residual_weight", matcher_parameters.motion_residual_weight());
+  getPrivateNodeHandle().getParam("function_tolerance", matcher_parameters.function_tolerance());
+  getPrivateNodeHandle().getParam("gradient_tolerance", matcher_parameters.gradient_tolerance());
+  getPrivateNodeHandle().getParam("parameter_tolerance", matcher_parameters.parameter_tolerance());
+  getPrivateNodeHandle().getParam("max_num_iterations", matcher_parameters.max_num_iterations());
+  getPrivateNodeHandle().getParam("max_solver_time_in_seconds", matcher_parameters.max_solver_time_in_seconds());
+
   // get occupancy parameters
   OccupancyParameters &occupancy_parameters = parameters_("occupancy", OccupancyParameters::Default());
   double p_update_factor_free, p_update_factor_occupied;
@@ -221,7 +234,7 @@ void Node::onInit()
   cloud_subscriber_ = getNodeHandle().subscribe<sensor_msgs::PointCloud2>("point_cloud", 10, &Node::cloudCallback, this);
 
   // initial pose subscriber
-  initial_pose_subscriber_ = getNodeHandle().subscribe<geometry_msgs::PoseWithCovarianceStamped>("initial_pose", 10, &Node::initialPoseCallback, this);
+  initial_pose_subscriber_ = getNodeHandle().subscribe<geometry_msgs::PoseWithCovarianceStamped>("initialpose", 10, &Node::initialPoseCallback, this);
 
   // static map subscriber
   static_map_subscriber_ = getNodeHandle().subscribe<nav_msgs::OccupancyGrid>("static_map", 10, &Node::staticMapCallback, this);
