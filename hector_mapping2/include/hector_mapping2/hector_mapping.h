@@ -80,6 +80,7 @@ protected:
   std::string p_base_frame_;
   std::string p_odom_frame_;
   bool p_use_tf_scan_transformation_;
+  bool p_use_tf_pose_start_estimate_;
   bool p_pub_map_odom_transform_;
   bool p_advertise_map_service_;
   double p_map_update_translational_threshold_;

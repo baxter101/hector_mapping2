@@ -40,6 +40,7 @@ Node::Node()
   parameters_("base_frame", p_base_frame_ = "base_link");
   parameters_("odom_frame", p_odom_frame_ = "base_link");
   parameters_("use_tf_scan_transformation", p_use_tf_scan_transformation_ = true);
+  parameters_("use_tf_pose_start_estimate", p_use_tf_pose_start_estimate_ = false);
   parameters_("pub_map_odom_transform_", p_pub_map_odom_transform_ = true);
   parameters_("advertise_map_service", p_advertise_map_service_ = true);
 
@@ -126,6 +127,7 @@ void Node::onInit()
   if (!map_) {
     ROS_FATAL("Unknown map type: %s", p_map_type.c_str());
     ros::shutdown();
+    return;
   }
 
   // get occupancy parameters
@@ -150,6 +152,7 @@ void Node::onInit()
   getPrivateNodeHandle().getParam("base_frame", p_base_frame_);
   getPrivateNodeHandle().getParam("odom_frame", p_odom_frame_);
   getPrivateNodeHandle().getParam("use_tf_scan_transformation", p_use_tf_scan_transformation_);
+  getPrivateNodeHandle().getParam("use_tf_pose_start_estimate", p_use_tf_pose_start_estimate_);
   getPrivateNodeHandle().getParam("pub_map_odom_transform", p_pub_map_odom_transform_);
   getPrivateNodeHandle().getParam("advertise_map_service", p_advertise_map_service_);
   getPrivateNodeHandle().getParam("map_update_distance_thresh", p_map_update_translational_threshold_);
@@ -285,15 +288,17 @@ void Node::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud)
 bool Node::update()
 {
   // get pose from tf
-  tf::StampedTransform odom_pose;
-  try {
-    getTransformListener().waitForTransform(p_odom_frame_, p_base_frame_, scan_.getStamp(), ros::Duration(1.0));
-    getTransformListener().lookupTransform(p_odom_frame_, p_base_frame_, scan_.getStamp(), odom_pose);
+  if (p_use_tf_pose_start_estimate_) {
+    tf::StampedTransform odom_pose;
+    try {
+      getTransformListener().waitForTransform(p_odom_frame_, p_base_frame_, scan_.getStamp(), ros::Duration(1.0));
+      getTransformListener().lookupTransform(p_odom_frame_, p_base_frame_, scan_.getStamp(), odom_pose);
 
-    matcher_->setTransform(map_odom_transform_.inverse() * odom_pose);
-  } catch(tf::TransformException& e) {
-    ROS_ERROR("Could not get pose from tf: %s", e.what());
-    return false;
+      matcher_->setTransform(map_odom_transform_.inverse() * odom_pose);
+    } catch(tf::TransformException& e) {
+      ROS_ERROR("Could not get pose from tf: %s", e.what());
+      return false;
+    }
   }
 
   // match scan
