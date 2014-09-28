@@ -281,7 +281,7 @@ void Node::onInit()
 
   // advertise timing information
 #ifdef USE_HECTOR_TIMING
-  timing_publisher_ = getPrivateNodeHandle().advertise<hector_diagnostics_msgs::TimingInfo>("timing", 1);
+  timing_publisher_ = getPrivateNodeHandle().advertise<hector_diagnostics::TimingInfo>("timing", 1);
 #endif
 
   // reset

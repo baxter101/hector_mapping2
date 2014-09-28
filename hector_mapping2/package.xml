@@ -71,6 +71,8 @@
   <build_depend>nodelet</build_depend>
   <run_depend>nodelet</run_depend>
 
+  <test_depend>hector_timing</test_depend>
+
   <!-- The export tag contains other, unspecified, tags -->
   <export>
     <!-- You can specify that this package is a metapackage here: -->
