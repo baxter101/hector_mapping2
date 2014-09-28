@@ -63,4 +63,14 @@ namespace hector_mapping {
     }
     return map;
   }
+
+  std::string MapFactory::getMapTypes()
+  {
+    static const std::string s_map_types =
+      "- OccupancyGridMap2D\n"
+      "- OccupancyQuadTreeMap2D\n"
+      "- OccupancyOcTreeMap3D\n"
+      "- OccupancyQuadTreeMap3D\n";
+    return s_map_types;
+  }
 }

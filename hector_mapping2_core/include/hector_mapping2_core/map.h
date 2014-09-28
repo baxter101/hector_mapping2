@@ -53,6 +53,9 @@ public:
   // implemented in types.cpp
   MapBasePtr operator()(const std::string& type);
 
+  // implemented in types.cpp
+  static std::string getMapTypes();
+
 private:
   Parameters params_;
 };

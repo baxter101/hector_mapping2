@@ -127,7 +127,7 @@ void Node::onInit()
   getPrivateNodeHandle().getParam("map_type", p_map_type);
   map_ = MapFactory(parameters_).create<OccupancyGridMapBase>(p_map_type);
   if (!map_) {
-    ROS_FATAL("Unknown map type: %s", p_map_type.c_str());
+    ROS_FATAL("Unknown map type: %s.\n\nAvailable map types:\n%s", p_map_type.c_str(), MapFactory::getMapTypes().c_str());
     ros::shutdown();
     return;
   }
