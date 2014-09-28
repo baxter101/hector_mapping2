@@ -10,19 +10,12 @@ find_package(catkin REQUIRED COMPONENTS sensor_msgs geometry_msgs nav_msgs laser
 ## Find boost thread
 #find_package(Boost REQUIRED COMPONENTS thread)
 find_package(Boost REQUIRED)
-include_directories(${Boost_INCLUDE_DIRS})
 
 ## Find eigen
 find_package(Eigen REQUIRED)
-include_directories(${EIGEN_INCLUDE_DIRS})
-add_definitions(${EIGEN_DEFINITIONS})
 
 ## Find ceres-solver
 find_package(Ceres REQUIRED)
-if(CERES_LIBRARIES)
-  add_definitions(-DHAVE_CERES)
-  include_directories(${CERES_INCLUDES})
-endif()
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -84,6 +77,13 @@ message(STATUS "CMAKE_CXX_FLAGS_DEBUG:          ${CMAKE_CXX_FLAGS_DEBUG}")
 ## Your package locations should be listed before other locations
 include_directories(include)
 include_directories(${catkin_INCLUDE_DIRS})
+include_directories(${Boost_INCLUDE_DIRS})
+include_directories(${EIGEN_INCLUDE_DIRS})
+add_definitions(${EIGEN_DEFINITIONS})
+if(CERES_LIBRARIES)
+  add_definitions(-DHAVE_CERES)
+  include_directories(${CERES_INCLUDES})
+endif()
 
 ## Declare a cpp library
 add_library(hector_mapping2
