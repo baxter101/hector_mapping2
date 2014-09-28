@@ -30,9 +30,9 @@
 #ifndef HECTOR_MAPPING2_NODE_H
 #define HECTOR_MAPPING2_NODE_H
 
-#include <hector_mapping2_core/map/types.h>
-#include <hector_mapping2_core/scan.h>
-#include <hector_mapping2_core/matcher.h>
+#include <hector_mapping2/map/types.h>
+#include <hector_mapping2/scan.h>
+#include <hector_mapping2/matcher.h>
 
 #include <ros/ros.h>
 #include <nodelet/nodelet.h>

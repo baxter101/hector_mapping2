@@ -27,7 +27,7 @@
 //=================================================================================================
 
 #include <hector_mapping2/hector_mapping.h>
-#include <hector_mapping2_core/map/conversion.h>
+#include <hector_mapping2/map/conversion.h>
 
 #include <visualization_msgs/Marker.h>
 
