@@ -45,6 +45,7 @@ namespace axes {
     static void adjustSize(Size& size) { size.y() = size.z() = 0; }
     static size_t getArraySize(const Size& size) { return size.x(); }
     static size_t getArrayIndex(const GridIndex& key, const Size& size) { return static_cast<size_t>(key[0] + (size.x() >> 1)); }
+    static size_t getMaximumIndex(const GridIndex& key) { return key[0]; }
   };
   struct Y  {
     static const size_t BinaryTreeNumberOfChildren = 2;
@@ -53,6 +54,7 @@ namespace axes {
     static void adjustSize(Size& size) { size.x() = size.z() = 0; }
     static size_t getArraySize(const Size& size) { return size.y(); }
     static size_t getArrayIndex(const GridIndex& key, const Size& size) { return static_cast<size_t>(key[1] + (size.y() >> 1)); }
+    static size_t getMaximumIndex(const GridIndex& key) { return key[1]; }
   };
   struct Z  {
     static const size_t BinaryTreeNumberOfChildren = 2;
@@ -61,6 +63,7 @@ namespace axes {
     static void adjustSize(Size& size) { size.x() = size.y() = 0; }
     static size_t getArraySize(const Size& size) { return size.z(); }
     static size_t getArrayIndex(const GridIndex& key, const Size& size) { return static_cast<size_t>(key[2] + (size.z() >> 1)); }
+    static size_t getMaximumIndex(const GridIndex& key) { return abs(key[2]); }
   };
   struct XY {
     static const size_t BinaryTreeNumberOfChildren = 4;
@@ -69,6 +72,7 @@ namespace axes {
     static void adjustSize(Size& size) { size.z() = 0; }
     static size_t getArraySize(const Size& size) { return size.x() * size.y(); }
     static size_t getArrayIndex(const GridIndex& key, const Size& size) { return static_cast<size_t>(key[1] + (size.y() >> 1)) * size.x() + static_cast<size_t>(key[0] + (size.x() >> 1)); }
+    static size_t getMaximumIndex(const GridIndex& key) { return std::max(abs(key[0]), abs(key[1])); }
   };
   struct YZ {
     static const size_t BinaryTreeNumberOfChildren = 4;
@@ -77,6 +81,7 @@ namespace axes {
     static void adjustSize(Size& size) { size.x() = 0; }
     static size_t getArraySize(const Size& size) { return size.y() * size.z(); }
     static size_t getArrayIndex(const GridIndex& key, const Size& size) { return static_cast<size_t>(key[2] + (size.z() >> 1)) * size.y() + static_cast<size_t>(key[1] + (size.y() >> 1)); }
+    static size_t getMaximumIndex(const GridIndex& key) { return std::max(abs(key[1]), abs(key[2])); }
   };
   struct XZ {
     static const size_t BinaryTreeNumberOfChildren = 4;
@@ -85,6 +90,7 @@ namespace axes {
     static void adjustSize(Size& size) { size.y() = 0; }
     static size_t getArraySize(const Size& size) { return size.x() * size.z(); }
     static size_t getArrayIndex(const GridIndex& key, const Size& size) { return static_cast<size_t>(key[2] + (size.z() >> 1)) * size.x() + static_cast<size_t>(key[0] + (size.x() >> 1)); }
+    static size_t getMaximumIndex(const GridIndex& key) { return std::max(abs(key[0]), abs(key[2])); }
   };
   struct XYZ {
     static const size_t BinaryTreeNumberOfChildren = 8;
@@ -93,6 +99,7 @@ namespace axes {
     static void adjustSize(Size&) { }
     static size_t getArraySize(const Size& size) { return size.x() * size.y() * size.z(); }
     static size_t getArrayIndex(const GridIndex& key, const Size& size) { return static_cast<size_t>(key[2] + (size.z() >> 1)) * size.x() * size.y() + static_cast<size_t>(key[1] + (size.y() >> 1)) * size.x() + static_cast<size_t>(key[0] + (size.x() >> 1)); }
+    static size_t getMaximumIndex(const GridIndex& key) { return std::max(std::max(abs(key[0]), abs(key[1])), abs(key[2])); }
   };
 }
 

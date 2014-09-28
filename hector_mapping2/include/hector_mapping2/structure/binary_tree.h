@@ -116,10 +116,9 @@ public:
     : StructureBase(params)
     , root_(0)
   {
-//    params("max_depth", max_depth_ = 16);
-    params("max_depth", max_depth_ = 10);
+    params("max_depth", max_depth_ = 16);
+//    params("max_depth", max_depth_ = 10);
 
-    Axes::setBinaryTreeSize(size_, 1u << max_depth_);
     clear();
   }
 
@@ -132,8 +131,17 @@ public:
   }
 
   bool setExtends(const GridIndex &min, const GridIndex &max) {
-    // todo: resize binary tree dynamically
-    return false;
+    size_t max_index = std::max(Axes::getMaximumIndex(min), Axes::getMaximumIndex(max));
+
+    // find the smallest power of 2 which is greater or equal max_index
+    // max_index_ = 2 ^ ceil(log2(max_index - 1))
+    if (max_index > 0) --max_index;
+    int log_max_index = 0;
+    while(max_index > 0) { log_max_index++; max_index >>= 1; }
+    if (log_max_index + 1 > max_depth_) return false;
+    max_index_ = 1u << log_max_index;
+    Axes::setBinaryTreeSize(size_, max_index_ << 1);
+    return true;
   }
 
   virtual NodePtr getNode(GridIndex key, int depth = -1, bool _expand = true) const {
@@ -179,11 +187,14 @@ public:
   virtual void clear() {
     delete root_;
     root_ = new Node();
+    max_index_ = 0;
+    Axes::setBinaryTreeSize(size_, 1u);
   }
 
 private:
   Node *root_;
   int max_depth_;
+  size_t max_index_;
   Size size_;
 };
 
