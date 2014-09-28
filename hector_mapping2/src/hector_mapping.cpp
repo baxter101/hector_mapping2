@@ -31,6 +31,10 @@
 
 #include <visualization_msgs/Marker.h>
 
+#ifdef USE_HECTOR_TIMING
+#include <hector_diagnostics/timing.h>
+#endif
+
 namespace hector_mapping {
 
 Node::Node()
@@ -275,6 +279,11 @@ void Node::onInit()
     map_publish_thread_ = boost::thread(boost::bind(&Node::mapPublishThread, this, ros::Rate(ros::Duration(p_map_publish_period))));
   }
 
+  // advertise timing information
+#ifdef USE_HECTOR_TIMING
+  timing_publisher_ = getPrivateNodeHandle().advertise<hector_diagnostics_msgs::TimingInfo>("timing", 1);
+#endif
+
   // reset
   reset();
 }
@@ -284,8 +293,13 @@ void Node::scanCallback(const sensor_msgs::LaserScanConstPtr& scan)
   if (!map_ || !matcher_) return;
 
   // transform scan
-  scan_ = *scan;
-  if (!scan_.valid()) return;
+  {
+#ifdef USE_HECTOR_TIMING
+    hector_diagnostics::TimingSection section("scan transformation");
+#endif
+    scan_ = *scan;
+    if (!scan_.valid()) return;
+  }
 
   update();
 }
@@ -295,8 +309,13 @@ void Node::cloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud)
   if (!map_ || !matcher_) return;
 
   // transform scan
-  scan_ = *cloud;
-  if (!scan_.valid()) return;
+  {
+#ifdef USE_HECTOR_TIMING
+    hector_diagnostics::TimingSection section("cloud transformation");
+#endif
+    scan_ = *cloud;
+    if (!scan_.valid()) return;
+  }
 
   update();
 }
@@ -319,6 +338,9 @@ bool Node::update()
 
   // match scan
   if (!map_->empty()) {
+#ifdef USE_HECTOR_TIMING
+    hector_diagnostics::TimingSection section("scan matcher");
+#endif
     matcher_->computeCovarianceIf(pose_with_covariance_publisher_ && pose_with_covariance_publisher_.getNumSubscribers() > 0);
     matcher_->match(*map_, scan_);
     if (!matcher_->valid()) return false;
@@ -328,9 +350,12 @@ bool Node::update()
   float_t position_difference, orientation_difference;
   matcher_->getPoseDifference(last_map_update_pose_, position_difference, orientation_difference);
   if (map_->empty() || position_difference > p_map_update_translational_threshold_ || orientation_difference > p_map_update_angular_threshold_) {
-    ros::WallTime _map_update_start = ros::WallTime::now();
+#ifdef USE_HECTOR_TIMING
+    hector_diagnostics::TimingSection section("map update");
+#endif
+    // ros::WallTime _map_update_start = ros::WallTime::now();
       map_->insert(scan_, matcher_->getTransform());
-    ROS_DEBUG("Map update took %f seconds.", (ros::WallTime::now() - _map_update_start).toSec());
+    // ROS_DEBUG("Map update took %f seconds.", (ros::WallTime::now() - _map_update_start).toSec());
 
     last_map_update_pose_ = matcher_->getTransform();
     last_map_update_time_ = scan_.getStamp();
@@ -341,6 +366,11 @@ bool Node::update()
 
   // publish tf
   if (p_pub_map_odom_transform_) publishTf();
+
+  // publish timing
+#ifdef USE_HECTOR_TIMING
+    timing_publisher_.publish(hector_diagnostics::TimingAggregator::Instance()->update(matcher_->getStamp()));
+#endif
 
   return true;
 }
@@ -458,7 +488,12 @@ tf::TransformBroadcaster &Node::getTransformBroadcaster() {
 void Node::mapPublishThread(ros::Rate rate)
 {
   while(ros::ok()) {
-    publishMap();
+    {
+#ifdef USE_HECTOR_TIMING
+      hector_diagnostics::TimingSection section("map publish");
+#endif
+      publishMap();
+    }
     rate.sleep();
   }
 }

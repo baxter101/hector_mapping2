@@ -116,6 +116,8 @@ private:
   boost::thread map_publish_thread_;
 
   ros::ServiceServer map_service_;
+
+  ros::Publisher timing_publisher_;
 };
 
 } // namespace hector_mapping
