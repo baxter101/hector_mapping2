@@ -329,7 +329,7 @@ bool Node::update()
       getTransformListener().waitForTransform(p_odom_frame_, p_base_frame_, scan_.getStamp(), ros::Duration(1.0));
       getTransformListener().lookupTransform(p_odom_frame_, p_base_frame_, scan_.getStamp(), odom_pose);
 
-      matcher_->setTransform(map_odom_transform_.inverse() * odom_pose);
+      matcher_->setTransform(map_odom_transform_ * odom_pose);
     } catch(tf::TransformException& e) {
       ROS_ERROR("Could not get pose from tf: %s", e.what());
       return false;
